@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "OffTap",
+    "slug": "offtap",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "offtap",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.offtap.app",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "OffTap uses Face ID to protect access to your hardware-secured offline wallet.",
+        "NSBluetoothAlwaysUsageDescription": "OffTap uses Bluetooth to exchange signed offline payments with nearby devices.",
+        "NFCReaderUsageDescription": "OffTap uses NFC to tap-to-pay with nearby devices while offline."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#F5F6F8",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.offtap.app"
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#F5F6F8",
+          "dark": {
+            "backgroundColor": "#080A0F"
+          }
+        }
+      ],
+      "expo-secure-store",
+      "expo-sqlite"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
