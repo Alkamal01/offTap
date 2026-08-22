@@ -80,3 +80,4 @@ On first launch you'll be walked through provisioning a hardware-tied key pair a
 
 - `ShadowPaySpecification.md` is the original architecture spec this build was implemented against — useful background on the design intent behind the mocked layers.
 - The app currently seeds every new wallet with a fixed on-chain balance and a fixed counterparty address for the pay flow; there's no real peer discovery or funding path yet.
+- This repo was forked from [monad-developers/monad-blitz-abuja](https://github.com/monad-developers/monad-blitz-abuja) as a Monad Blitz Abuja hackathon submission.
