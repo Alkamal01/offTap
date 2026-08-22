@@ -38,6 +38,9 @@ export default function Home() {
 
   const recentActivity = [...pendingQueue, ...settledHistory].sort((a, b) => b.createdAt - a.createdAt).slice(0, 4);
 
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <SafeAreaView className="flex-1">
@@ -47,13 +50,23 @@ export default function Home() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.accent} />}
         >
           <View className="px-6 pt-2 pb-4 flex-row items-center justify-between">
-            <TouchableOpacity
-              onPress={() => router.push('/settings')}
-              style={{ backgroundColor: theme.accentSoft }}
-              className="w-10 h-10 rounded-full items-center justify-center"
-            >
-              <User size={18} color={theme.accent} />
-            </TouchableOpacity>
+            <View className="flex-row items-center gap-3">
+              <TouchableOpacity
+                onPress={() => router.push('/settings')}
+                style={{ backgroundColor: theme.accentSoft }}
+                className="w-10 h-10 rounded-full items-center justify-center"
+              >
+                <User size={18} color={theme.accent} />
+              </TouchableOpacity>
+              <View>
+                <Text style={{ color: theme.text }} className="text-sm font-bold">
+                  {greeting}
+                </Text>
+                <Text style={{ color: theme.textMuted }} className="text-xs">
+                  {wallet.address.slice(0, 6)}…{wallet.address.slice(-4)}
+                </Text>
+              </View>
+            </View>
             <TouchableOpacity
               onPress={handleNotifications}
               style={{ backgroundColor: theme.inputBg }}

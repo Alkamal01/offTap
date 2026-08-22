@@ -47,10 +47,29 @@
         }
       ],
       "expo-secure-store",
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "munim-bluetooth",
+        {
+          "androidBluetoothPermissions": [
+            "scan",
+            "connect",
+            "advertise"
+          ],
+          "bluetoothBackground": false,
+          "multipeerServiceTypes": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4b1ee948-bc3b-4dec-97f3-3383883dc86f"
+      }
+    },
+    "owner": "kaftandev"
   }
 }

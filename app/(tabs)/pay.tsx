@@ -7,6 +7,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useWallet } from '@/contexts/WalletContext';
 import ActionButton from '@/components/ActionButton';
 import { CompactPayload } from '@/lib/transport/LocalTransportService';
+import { BleStatus, isNativeAvailable, statusLabel } from '@/lib/transport/BleTransportService';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'del'];
 const MAX_AMOUNT_LENGTH = 9;
@@ -16,6 +17,7 @@ export default function Pay() {
   const { wallet, payOffline } = useWallet();
   const [amountStr, setAmountStr] = useState('10');
   const [status, setStatus] = useState<'idle' | 'signing' | 'success' | 'error'>('idle');
+  const [statusText, setStatusText] = useState('Signing with Secure Enclave…');
   const [error, setError] = useState('');
   const [lastPayload, setLastPayload] = useState<CompactPayload | null>(null);
 
@@ -41,9 +43,10 @@ export default function Pay() {
 
   const handlePay = async () => {
     setStatus('signing');
+    setStatusText('Signing with Secure Enclave…');
     setError('');
     try {
-      const payload = await payOffline(amount);
+      const payload = await payOffline(amount, (bleStatus: BleStatus) => setStatusText(statusLabel(bleStatus)));
       setLastPayload(payload);
       setStatus('success');
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -72,8 +75,13 @@ export default function Pay() {
             Pay
           </Text>
           <Text style={{ color: theme.textSecondary }} className="text-sm mt-1">
-            Signs offline with your hardware-tied key, then taps out over NFC/BLE.
+            Signs offline with your hardware-tied key, then sends it over Bluetooth.
           </Text>
+          {!isNativeAvailable() && (
+            <Text style={{ color: theme.textMuted }} className="text-xs mt-2">
+              Bluetooth simulated in this build — install the OffTap dev-client build for a real radio.
+            </Text>
+          )}
         </View>
 
         <View className="flex-1 items-center justify-center">
@@ -116,7 +124,7 @@ export default function Pay() {
                 ${amountStr}
               </Text>
               <Text style={{ color: theme.textSecondary }} className="text-sm mt-2">
-                {status === 'signing' ? 'Signing with Secure Enclave…' : 'Enter amount to pay'}
+                {status === 'signing' ? statusText : 'Enter amount to pay'}
               </Text>
               {status === 'error' && (
                 <Text style={{ color: theme.danger }} className="text-sm mt-3 text-center">

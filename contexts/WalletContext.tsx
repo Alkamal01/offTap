@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { HardwareSecurityBridge } from '@/lib/security/HardwareSecurityBridge';
-import { LocalTransportService, CompactPayload } from '@/lib/transport/LocalTransportService';
+import { CompactPayload, LocalTransportService } from '@/lib/transport/LocalTransportService';
+import { BleTransportService, BleStatus } from '@/lib/transport/BleTransportService';
 import { LocalStateEngine, WalletState, QueuedTransaction } from '@/lib/state/LocalStateEngine';
 import { MonadSettlementClient, SettlementResult } from '@/lib/chain/MonadSettlementClient';
 
@@ -19,8 +20,13 @@ interface WalletContextValue {
   toggleOnline: () => void;
   createWallet: (recoveryAddress: string) => Promise<void>;
   lockToOfflineVault: (amount?: number) => Promise<void>;
-  payOffline: (amount?: number) => Promise<CompactPayload>;
+  payOffline: (amount?: number, onStatus?: (status: BleStatus) => void) => Promise<CompactPayload>;
   receiveOffline: (payload: CompactPayload) => Promise<void>;
+  startListeningForTaps: (
+    onStatus?: (status: BleStatus) => void,
+    onReceived?: (payload: CompactPayload) => void
+  ) => Promise<void>;
+  stopListening: () => void;
   syncBatchToMonad: () => Promise<SettlementResult>;
   refreshQueue: () => Promise<void>;
 }
@@ -95,7 +101,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   );
 
   const payOffline = useCallback(
-    async (amount: number = TAP_TO_PAY_AMOUNT) => {
+    async (amount: number = TAP_TO_PAY_AMOUNT, onStatus?: (status: BleStatus) => void) => {
       if (!wallet) throw new Error('No wallet');
       if (wallet.offlineBalance < amount) throw new Error('Secure vault has insufficient balance.');
 
@@ -114,9 +120,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         s: sigPacket.signatureS,
       };
 
-      const serialized = LocalTransportService.serializePayload(payload);
-      const sent = await LocalTransportService.transmitViaNFC(serialized);
-      if (!sent) throw new Error('NFC transmission failed');
+      const sent = await BleTransportService.sendPayload(payload, onStatus);
+      if (!sent) throw new Error('Bluetooth transmission failed');
 
       const next = await LocalStateEngine.updateBalances(wallet.onlineBalance, wallet.offlineBalance - amount);
       if (next) setWallet(next);
@@ -134,6 +139,27 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     },
     [refreshQueue]
   );
+
+  const startListeningForTaps = useCallback(
+    async (onStatus?: (status: BleStatus) => void, onReceived?: (payload: CompactPayload) => void) => {
+      await BleTransportService.startListening(async (payload) => {
+        const verified = LocalTransportService.verifyIncomingSignature({
+          signatureR: payload.r,
+          signatureS: payload.s,
+          nonce: payload.nonce,
+        });
+        if (verified) {
+          await receiveOffline(payload);
+          onReceived?.(payload);
+        }
+      }, onStatus);
+    },
+    [receiveOffline]
+  );
+
+  const stopListening = useCallback(() => {
+    BleTransportService.stopListening();
+  }, []);
 
   const syncBatchToMonad = useCallback(async () => {
     if (!isOnline) throw new Error('Re-establish internet connection to resolve pending ledgers on Monad.');
@@ -164,6 +190,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       lockToOfflineVault,
       payOffline,
       receiveOffline,
+      startListeningForTaps,
+      stopListening,
       syncBatchToMonad,
       refreshQueue,
     }),
@@ -180,6 +208,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       lockToOfflineVault,
       payOffline,
       receiveOffline,
+      startListeningForTaps,
+      stopListening,
       syncBatchToMonad,
       refreshQueue,
     ]

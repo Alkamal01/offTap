@@ -1,0 +1,10 @@
+[profile.default]
+src = "contracts"
+out = "contracts-out"
+libs = ["contracts-lib"]
+script = "contracts-script"
+test = "contracts-test"
+solc_version = "0.8.20"
+
+[rpc_endpoints]
+monad_testnet = "https://testnet-rpc.monad.xyz"

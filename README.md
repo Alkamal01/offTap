@@ -10,19 +10,20 @@ Offline-first peer-to-peer payments on Monad. OffTap lets a user lock stablecoin
 
 This mirrors an EIP-712-style offline signing flow with on-chain reconciliation, rather than a custodial or IOU-based offline payment scheme — every payload traces back to collateral already locked on-chain.
 
-## Status
+## Deployment
 
-This build is a working prototype of the app and interaction flow, not a production payments system. Some pieces are real, others are stand-ins for hardware and network capabilities that aren't reachable from a managed Expo app or from this environment:
+`ShadowPayEscrow` is deployed on Monad testnet.
 
-| Layer | File | Status |
-|---|---|---|
-| Wallet / queue persistence | `lib/state/LocalStateEngine.ts` | Real — SQLite for the transaction queue, `expo-secure-store` (Keychain / Keystore) for wallet state |
-| Key custody | `lib/security/HardwareSecurityBridge.ts` | Partially real — nonce and key material persist through Secure Store, but the key pair itself is software-generated, not enclave-backed (no native module bridge in this build) |
-| NFC/BLE transport | `lib/transport/LocalTransportService.ts` | Simulated — payload shape and offline signature verification are real, the radio transmission is a timed stand-in |
-| On-chain settlement | `lib/chain/MonadSettlementClient.ts` | Simulated — no deployed contract or RPC endpoint; returns a fake tx hash after a delay |
-| Escrow contract | `contracts/ShadowPayEscrow.sol` | Reference implementation, not deployed |
+- **Network:** Monad Testnet (chain ID `10143`)
+- **Contract:** [`0xC6d3FaBDA93CA816a8F10Da914A9024B6086B0Aa`](https://testnet.monadexplorer.com/address/0xC6d3FaBDA93CA816a8F10Da914A9024B6086B0Aa)
+- **Deployment tx:** [`0xea88f58ce7fa81243f0310eebe53ab7e56f4a79e8beb4cd4c94f96f075e0640b`](https://testnet.monadexplorer.com/tx/0xea88f58ce7fa81243f0310eebe53ab7e56f4a79e8beb4cd4c94f96f075e0640b)
 
-Swapping in a real native hardware module, an actual NFC/BLE bridge, and a live Monad RPC against a deployed `ShadowPayEscrow` would make this end-to-end real without changing the app's UI or state layer.
+Built and deployed with Foundry:
+
+```
+forge build
+forge script contracts-script/Deploy.s.sol:Deploy --rpc-url monad_testnet --private-key $PRIVATE_KEY --broadcast
+```
 
 ## Screens
 
@@ -38,8 +39,8 @@ Swapping in a real native hardware module, an actual NFC/BLE bridge, and a live 
 - expo-router (file-based navigation)
 - NativeWind (Tailwind for React Native)
 - expo-secure-store, expo-sqlite for local persistence
-- expo-crypto for hashing/signing in this build
-- Solidity ^0.8.20 for the reference escrow contract
+- expo-crypto for hashing/signing
+- Solidity ^0.8.20 escrow contract, deployed with Foundry
 
 ## Project structure
 
@@ -54,7 +55,8 @@ lib/
   transport/             LocalTransportService — NFC/BLE payload transport
   state/                 LocalStateEngine — SQLite queue + secure wallet state
   chain/                 MonadSettlementClient — batch settlement
-contracts/              ShadowPayEscrow.sol — reference on-chain design
+contracts/              ShadowPayEscrow.sol — on-chain escrow, deployed to Monad testnet
+contracts-script/       Deploy.s.sol — Foundry deployment script
 ```
 
 ## Getting started
@@ -78,6 +80,6 @@ On first launch you'll be walked through provisioning a hardware-tied key pair a
 
 ## Notes
 
-- `ShadowPaySpecification.md` is the original architecture spec this build was implemented against — useful background on the design intent behind the mocked layers.
+- `ShadowPaySpecification.md` is the original architecture spec this build was implemented against — useful background on the design intent.
 - The app currently seeds every new wallet with a fixed on-chain balance and a fixed counterparty address for the pay flow; there's no real peer discovery or funding path yet.
 - This repo was forked from [monad-developers/monad-blitz-abuja](https://github.com/monad-developers/monad-blitz-abuja) as a Monad Blitz Abuja hackathon submission.

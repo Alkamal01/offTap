@@ -1,10 +1,9 @@
 import { OfflineSignaturePacket } from '@/lib/security/HardwareSecurityBridge';
 
 /**
- * Simulates passing packed data frames over short-range radio (NFC HCE / BLE).
- * Real device-to-device radio isn't reachable from this environment, so the
- * transmit calls stay simulated — but the payload shape and offline signature
- * verification are real, matching what an on-device NFC/BLE bridge would do.
+ * Payload codec shared by both transports: the compact wire shape for a signed
+ * offline payment, and the chunk framing used to fit it inside a single BLE
+ * characteristic write (see BleTransportService.ts for the actual radio I/O).
  */
 
 export interface CompactPayload {
@@ -34,21 +33,57 @@ export class LocalTransportService {
     };
   }
 
-  /** Simulates the latency of a standard NFC tap / BLE handshake. */
-  public static async transmitViaNFC(serializedData: string): Promise<boolean> {
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(serializedData.length > 0), 900);
-    });
-  }
-
-  /** Simulates the merchant device listening for and accepting an inbound tap. */
-  public static async listenForIncomingTap(): Promise<CompactPayload | null> {
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(null), 400);
-    });
-  }
-
   public static verifyIncomingSignature(packet: OfflineSignaturePacket): boolean {
     return Boolean(packet.signatureR) && Boolean(packet.signatureS) && packet.nonce > 0;
+  }
+}
+
+function bytesToHex(bytes: number[]): string {
+  return bytes.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function hexToBytes(hex: string): number[] {
+  const bytes: number[] = [];
+  for (let i = 0; i < hex.length; i += 2) bytes.push(parseInt(hex.slice(i, i + 2), 16));
+  return bytes;
+}
+
+/**
+ * Splits a serialized payload into `[chunkIndex][totalChunks][...utf8 bytes]`
+ * hex frames, each sized to fit one BLE characteristic write.
+ */
+export function chunkPayload(serialized: string, chunkPayloadBytes: number): string[] {
+  const dataBytes = Array.from(new TextEncoder().encode(serialized));
+  const totalChunks = Math.max(1, Math.ceil(dataBytes.length / chunkPayloadBytes));
+  const chunks: string[] = [];
+  for (let i = 0; i < totalChunks; i++) {
+    const slice = dataBytes.slice(i * chunkPayloadBytes, (i + 1) * chunkPayloadBytes);
+    chunks.push(bytesToHex([i, totalChunks, ...slice]));
+  }
+  return chunks;
+}
+
+/** Reassembles chunks written by `chunkPayload`, by index, into the original serialized string. */
+export class ChunkReassembler {
+  private chunks = new Map<number, number[]>();
+  private total: number | null = null;
+
+  /** Feeds one hex chunk in; returns the reassembled serialized payload once all chunks have arrived. */
+  public addChunk(hex: string): string | null {
+    const [index, total, ...data] = hexToBytes(hex);
+    this.total = total;
+    this.chunks.set(index, data);
+
+    if (this.chunks.size < total) return null;
+
+    const all: number[] = [];
+    for (let i = 0; i < total; i++) all.push(...(this.chunks.get(i) ?? []));
+    this.reset();
+    return new TextDecoder().decode(new Uint8Array(all));
+  }
+
+  public reset(): void {
+    this.chunks.clear();
+    this.total = null;
   }
 }

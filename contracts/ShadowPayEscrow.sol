@@ -7,9 +7,11 @@ pragma solidity ^0.8.20;
  * processes optimistic offline batched transactions. Optimized for Monad's
  * high-speed parallel EVM execution environment.
  *
- * NOT DEPLOYED. Carried over from ShadowPaySpecification.md as the architectural
- * reference the app's mocked MonadSettlementClient stands in for. Wire up a real
- * deployment + RPC before treating any settlement in the app as real.
+ * Deployed to Monad testnet at 0xC6d3FaBDA93CA816a8F10Da914A9024B6086B0Aa
+ * (see README for the deployment transaction). The app's MonadSettlementClient
+ * still talks to a mocked client rather than this address — wire up a real
+ * ethers/viem call against the deployed contract before treating any
+ * in-app settlement as real.
  */
 contract ShadowPayEscrow {
 

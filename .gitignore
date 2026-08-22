@@ -31,7 +31,12 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
+
+# foundry (broadcast/ is kept — it's the on-chain deployment record)
+cache/
+contracts-out/
 
 # typescript
 *.tsbuildinfo
