@@ -1,20 +1,19 @@
 {
   "expo": {
-    "name": "OffTap",
-    "slug": "offtap",
+    "name": "Cloak",
+    "slug": "cloak",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "offtap",
+    "scheme": "cloak",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.offtap.app",
+      "bundleIdentifier": "com.cloak.app",
       "infoPlist": {
-        "NSFaceIDUsageDescription": "OffTap uses Face ID to protect access to your hardware-secured offline wallet.",
-        "NSBluetoothAlwaysUsageDescription": "OffTap uses Bluetooth to exchange signed offline payments with nearby devices.",
-        "NFCReaderUsageDescription": "OffTap uses NFC to tap-to-pay with nearby devices while offline."
+        "NSFaceIDUsageDescription": "Cloak uses Face ID to protect access to your private receipts and identity keys.",
+        "NFCReaderUsageDescription": "Cloak may use NFC to exchange public identities with nearby devices."
       }
     },
     "android": {
@@ -26,7 +25,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.offtap.app"
+      "package": "com.cloak.app"
     },
     "web": {
       "output": "static",
@@ -46,20 +45,7 @@
           }
         }
       ],
-      "expo-secure-store",
-      "expo-sqlite",
-      [
-        "munim-bluetooth",
-        {
-          "androidBluetoothPermissions": [
-            "scan",
-            "connect",
-            "advertise"
-          ],
-          "bluetoothBackground": false,
-          "multipeerServiceTypes": false
-        }
-      ]
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true

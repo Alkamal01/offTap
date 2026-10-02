@@ -1,85 +1,71 @@
-# OffTap
+# Cloak
 
-Offline-first peer-to-peer payments on Monad. OffTap lets a user lock stablecoin balance into a hardware-secured local vault, then tap to pay another device over NFC/BLE with no network connection at all. Payloads are collected locally and settled on-chain in a single batched transaction the next time either party is back online.
+**powered by ProofTrade**
 
-## How it works
+Repository: `github.com/<you>/cloak`
 
-1. **Escrow.** A user deposits funds into `ShadowPayEscrow` on Monad, tied to a hardware-generated `secp256r1` key pair. The deposit is the collateral backing everything that gets spent offline.
-2. **Offline signing.** A slice of that balance is locked into the device's Secure Enclave / StrongBox vault. Each payment is signed locally against a monotonically increasing nonce and handed to the recipient over NFC or BLE — no server, no internet, no chain interaction.
-3. **Batch settlement.** The merchant device holds signed payloads in a local queue. Once it regains connectivity, the whole queue is pushed to Monad as one call, verified and settled in parallel.
+Verify trust. Reveal less.
 
-This mirrors an EIP-712-style offline signing flow with on-chain reconciliation, rather than a custodial or IOU-based offline payment scheme — every payload traces back to collateral already locked on-chain.
+Cloak is a consumer app for selectively sharing private ProofTrade receipts. Two people who completed an economic interaction can mutually attest to the outcome, store the receipt privately, and later disclose selected receipts as evidence.
 
-## Deployment
+Cloak does not create a universal trust score. It presents cryptographically verifiable evidence so a person can decide what that evidence means.
 
-`ShadowPayEscrow` is deployed on Monad testnet.
+The repository and consumer product are named `cloak`. The protocol is deliberately independent and named `ProofTrade`.
 
-- **Network:** Monad Testnet (chain ID `10143`)
-- **Contract:** [`0xC6d3FaBDA93CA816a8F10Da914A9024B6086B0Aa`](https://testnet.monadexplorer.com/address/0xC6d3FaBDA93CA816a8F10Da914A9024B6086B0Aa)
-- **Deployment tx:** [`0xea88f58ce7fa81243f0310eebe53ab7e56f4a79e8beb4cd4c94f96f075e0640b`](https://testnet.monadexplorer.com/tx/0xea88f58ce7fa81243f0310eebe53ab7e56f4a79e8beb4cd4c94f96f075e0640b)
-
-Built and deployed with Foundry:
-
+```text
+cloak/
+├── crates/prooftrade-core
+└── crates/prooftrade-nostr
 ```
-forge build
-forge script contracts-script/Deploy.s.sol:Deploy --rpc-url monad_testnet --private-key $PRIVATE_KEY --broadcast
-```
+
+`prooftrade-core` and `prooftrade-nostr` are protocol crates, not Cloak-specific services. Other products should be able to use ProofTrade without adopting Cloak branding, servers, or UI.
+
+## MVP in this repo
+
+- Expo / React Native mobile app using the existing Inter font and navy/slate brand palette.
+- Home, People, Proofs, and Profile flows.
+- Local ProofTrade fixture layer with canonical receipt commitments, deterministic demo signatures, disclosure packages, duplicate detection, and a tampered receipt demo.
+- Clone-identity demo: two "Bob Electronics" profiles with different identities and different evidence.
+- Rust protocol workspace with signed receipts, two-party disclosure verification, encrypted Nostr envelopes, and a WASM verification API.
+
+The current app-layer verifier is an MVP bridge for demonstration. Security-critical verification should move into the planned Rust `prooftrade-core` crate before production use.
+
+## Product principles
+
+- Private by default. Public by choice.
+- Receipts are evidence, not ratings.
+- Names, photos, and bios are not identity.
+- Bitcoin or Lightning settlement data can support a receipt but does not prove delivery, honest behavior, or a completed physical trade by itself.
+- Verification should happen locally without trusting a Cloak server.
 
 ## Screens
 
-- **Home** — on-chain and offline vault balances, recent activity, lock funds into the offline vault
-- **Pay** — enter an amount on the on-screen keypad and sign a tap
-- **Receive** — listens for and queues an incoming tap
-- **Sync** — batch-settles the local queue to Monad once online, shows settled history
-- **Settings** — theme, connectivity toggle (for exercising offline mode), wallet details
-
-## Tech stack
-
-- Expo SDK 54 / React Native 0.81, TypeScript
-- expo-router (file-based navigation)
-- NativeWind (Tailwind for React Native)
-- expo-secure-store, expo-sqlite for local persistence
-- expo-crypto for hashing/signing
-- Solidity ^0.8.20 escrow contract, deployed with Foundry
-
-## Project structure
-
-```
-app/                    expo-router screens
-  (tabs)/                home, pay, receive, sync, settings
-  onboarding.tsx, setup.tsx
-components/             shared UI (ActionButton, BalanceCard, TransactionRow, ...)
-contexts/               WalletContext, ThemeContext
-lib/
-  security/             HardwareSecurityBridge — key generation & offline signing
-  transport/             LocalTransportService — NFC/BLE payload transport
-  state/                 LocalStateEngine — SQLite queue + secure wallet state
-  chain/                 MonadSettlementClient — batch settlement
-contracts/              ShadowPayEscrow.sol — on-chain escrow, deployed to Monad testnet
-contracts-script/       Deploy.s.sol — Foundry deployment script
-```
+- **Home**: Cloak identity, pending proof requests, pending receipt signatures, quick actions.
+- **People**: scan/paste/select an identity, request proof, compare legitimate and clone identities.
+- **Proofs**: verify disclosure packages locally, detect duplicates, show tampered receipt failure.
+- **Profile**: QR identity, public npub-style identity, privacy/security model, theme setting.
 
 ## Getting started
 
-Requires Node 18+ and the Expo CLI (`npx expo`, no global install needed).
+Requires Node 18+.
 
-```
+```bash
 npm install
 npm start
 ```
 
-Then run on a target from the Expo CLI, or directly:
+Run on a target from the Expo CLI, or directly:
 
+```bash
+npm run ios
+npm run android
+npm run web
 ```
-npm run ios       # iOS simulator
-npm run android   # Android emulator
-npm run web       # browser
-```
 
-On first launch you'll be walked through provisioning a hardware-tied key pair and setting a recovery address before landing on the home screen.
+## Roadmap
 
-## Notes
-
-- `ShadowPaySpecification.md` is the original architecture spec this build was implemented against — useful background on the design intent.
-- The app currently seeds every new wallet with a fixed on-chain balance and a fixed counterparty address for the pay flow; there's no real peer discovery or funding path yet.
-- This repo was forked from [monad-developers/monad-blitz-abuja](https://github.com/monad-developers/monad-blitz-abuja) as a Monad Blitz Abuja hackathon submission.
+- Create `crates/prooftrade-core` in Rust for canonical serialization, Schnorr/secp256k1 signing, verification, state transitions, and disclosure verification.
+- Add `crates/prooftrade-nostr` for encrypted proof requests, receipt proposals, and disclosure packages using maintained Nostr libraries.
+- Expose the Rust verifier to mobile through bindings and to web/demo through WASM.
+- Build `prooftrade-wasm` with `rustup target add wasm32-unknown-unknown` and `wasm-pack build crates/prooftrade-wasm --target web`.
+- Replace demo fixtures with secure local storage, migrations, encrypted receipt persistence, and Nostr relay transport.

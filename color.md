@@ -5,11 +5,11 @@ Primary white: #F5F6F8
 Cool slate blue: #46556F
 Secondary dark slate: #1B2433
 
-If you're turning this into the actual OffTap brand, I'd recommend using white + deep navy/slate as the core identity rather than the purple/magenta direction.
+For the Cloak brand, keep white + deep navy/slate as the core identity rather than the purple/magenta direction.
 
 A strong brand palette would be:
 
-OffTap
+Cloak
 
 Primary: #F5F6F8
 Navy: #111827

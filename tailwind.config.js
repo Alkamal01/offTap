@@ -5,7 +5,7 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        offtap: {
+        cloak: {
           navy: "#111827",
           slate: "#46556F",
           accent: "#7C8DA6",

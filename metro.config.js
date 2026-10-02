@@ -3,7 +3,6 @@ const { withNativeWind } = require("nativewind/metro");
 
 const config = getDefaultConfig(__dirname);
 
-// expo-sqlite's web backend loads a .wasm binary — treat it as an asset, not source.
 config.resolver.assetExts.push("wasm");
 
 module.exports = withNativeWind(config, { input: "./global.css" });

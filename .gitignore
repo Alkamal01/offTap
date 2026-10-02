@@ -34,9 +34,10 @@ yarn-error.*
 .env
 .env*.local
 
-# foundry (broadcast/ is kept — it's the on-chain deployment record)
+# generated build output
 cache/
 contracts-out/
+target/
 
 # typescript
 *.tsbuildinfo

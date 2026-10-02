@@ -2,7 +2,7 @@ import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Home, Inbox, Zap, RefreshCw, Settings } from 'lucide-react-native';
+import { Home, QrCode, ShieldCheck, Users, UserRound } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 
 interface NavItem {
@@ -14,10 +14,10 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { icon: Home, label: 'Home', route: '/home', tabName: 'home' },
-  { icon: Inbox, label: 'Receive', route: '/receive', tabName: 'receive' },
-  { icon: Zap, label: '', route: '/pay', tabName: 'pay' },
-  { icon: RefreshCw, label: 'Sync', route: '/sync', tabName: 'sync' },
-  { icon: Settings, label: 'Settings', route: '/settings', tabName: 'settings' },
+  { icon: Users, label: 'People', route: '/receive', tabName: 'receive' },
+  { icon: QrCode, label: '', route: '/pay', tabName: 'pay' },
+  { icon: ShieldCheck, label: 'Proofs', route: '/sync', tabName: 'sync' },
+  { icon: UserRound, label: 'Profile', route: '/settings', tabName: 'settings' },
 ];
 
 export default function PillTabBar() {

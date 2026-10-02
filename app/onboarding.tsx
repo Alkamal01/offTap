@@ -2,15 +2,15 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ShieldCheck, Wifi, Zap } from 'lucide-react-native';
+import { EyeOff, ShieldCheck, Users } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import Logo from '@/components/Logo';
 import ActionButton from '@/components/ActionButton';
 
 const points = [
-  { icon: Zap, text: 'Tap to pay in an instant — no network required.' },
-  { icon: ShieldCheck, text: 'Every payment is signed by hardware-secured keys on your device.' },
-  { icon: Wifi, text: 'Reconnect anytime and OffTap settles your queue on Monad.' },
+  { icon: ShieldCheck, text: 'Verify mutually signed trade receipts locally.' },
+  { icon: EyeOff, text: 'Receipts stay private until you choose what to share.' },
+  { icon: Users, text: 'Names and photos are not identity. Cryptographic keys are.' },
 ];
 
 export default function Onboarding() {
@@ -23,10 +23,10 @@ export default function Onboarding() {
         <View className="flex-1 items-center justify-center">
           <Logo size={104} />
           <Text style={{ color: theme.text }} className="text-3xl font-black mt-8 text-center">
-            Pay anyone.{'\n'}Even offline.
+            Verify trust.{'\n'}Reveal less.
           </Text>
           <Text style={{ color: theme.textSecondary }} className="text-[15px] text-center mt-3 leading-5 px-4">
-            OffTap is a hardware-secured, offline-first stablecoin wallet that settles instantly on Monad.
+            Cloak lets people selectively disclose private ProofTrade receipts as evidence of previous economic interactions.
           </Text>
 
           <View className="w-full mt-10 gap-4">

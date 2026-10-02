@@ -8,23 +8,23 @@ import { useWallet } from '@/contexts/WalletContext';
 import Logo from '@/components/Logo';
 import ActionButton from '@/components/ActionButton';
 
-const DEFAULT_RECOVERY = '0x8ba1f109551bD432803012645Hac136c22C177e';
+const DEFAULT_RECOVERY = 'Alice';
 
 export default function Setup() {
   const router = useRouter();
   const { theme } = useTheme();
   const { createWallet } = useWallet();
-  const [recovery, setRecovery] = useState(DEFAULT_RECOVERY);
+  const [name, setName] = useState(DEFAULT_RECOVERY);
   const [loading, setLoading] = useState(false);
 
   const handleCreate = async () => {
     setLoading(true);
     try {
       await new Promise((r) => setTimeout(r, 700));
-      await createWallet(recovery.trim() || DEFAULT_RECOVERY);
+      await createWallet(name.trim() || DEFAULT_RECOVERY);
       router.replace('/home');
     } catch (e) {
-      Alert.alert('Setup Error', 'Could not provision hardware-tied keys. Please try again.');
+      Alert.alert('Setup Error', 'Could not create your local identity. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -42,32 +42,31 @@ export default function Setup() {
           </View>
           <Logo size={40} style={{ marginBottom: 16 }} />
           <Text style={{ color: theme.text }} className="text-2xl font-black text-center">
-            Provision your Secure Enclave
+            Create your Cloak identity
           </Text>
           <Text style={{ color: theme.textSecondary }} className="text-sm text-center mt-3 leading-5">
-            OffTap generates a hardware-tied secp256r1 key pair on this device. Add a recovery
-            address in case this device is ever lost or destroyed.
+            Cloak uses a portable cryptographic identity for proof requests, disclosures, and private receipts.
           </Text>
 
           <View className="w-full mt-8">
             <Text style={{ color: theme.textSecondary }} className="text-xs font-semibold uppercase tracking-wide mb-2">
-              Recovery address
+              Display name
             </Text>
             <TextInput
-              value={recovery}
-              onChangeText={setRecovery}
+              value={name}
+              onChangeText={setName}
               autoCapitalize="none"
               autoCorrect={false}
               style={{ backgroundColor: theme.inputBg, color: theme.text, borderColor: theme.border }}
-              className="rounded-2xl px-4 py-3.5 text-sm border font-mono"
-              placeholder="0x…"
+              className="rounded-2xl px-4 py-3.5 text-sm border"
+              placeholder="Alice"
               placeholderTextColor={theme.textMuted}
             />
           </View>
         </View>
 
         <View className="pb-8">
-          <ActionButton title="Generate Keys & Continue" onPress={handleCreate} loading={loading} />
+          <ActionButton title="Create Identity & Continue" onPress={handleCreate} loading={loading} />
         </View>
       </SafeAreaView>
     </View>

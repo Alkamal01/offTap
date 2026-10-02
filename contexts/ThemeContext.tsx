@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Appearance, ColorSchemeName } from 'react-native';
-import * as SecureStore from '@/lib/storage/secureStorage';
+import * as SecureStore from 'expo-secure-store';
 import { colors, ThemeColors, ThemeMode } from '@/constants/colors';
 
-const THEME_MODE_KEY = 'offtap.theme_mode';
+const THEME_MODE_KEY = 'cloak.theme_mode';
 
 interface ThemeContextValue {
   mode: ThemeMode;
