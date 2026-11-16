@@ -1,7 +1,8 @@
+# syntax=docker/dockerfile:1
 FROM node:24-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci --maxsockets=3 --fetch-retries=5 --fetch-timeout=300000
 COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build && npm prune --omit=dev
