@@ -1,0 +1,9 @@
+services:
+  offtap:
+    build: .
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      PORT: 3000
+      MAX_PAYMENT_SATS: ${MAX_PAYMENT_SATS:-50000}
+    restart: unless-stopped
