@@ -10,6 +10,13 @@ Traders in markets like Kantin Kwari and Dawanau lose sales when bank transfers 
 
 A merchant links their wallet once, while they have data. After that they can pay from any phone signal, in Hausa, by dialling a USSD code or making a voice call.
 
+1. The merchant creates an NWC connection in their wallet, limited to `pay_invoice` and `get_balance` with a daily budget, and links it to their phone number.
+2. They dial the USSD code, choose **Tura Kudi**, enter the recipient and an amount in naira, and confirm with a PIN.
+3. offTap converts naira to sats at the live rate, fetches an invoice from the recipient's Lightning Address, and asks the merchant's wallet to pay it over NWC.
+4. An SMS receipt is sent.
+
+## Architecture
+
 ```mermaid
 flowchart LR
     phone[Merchant's phone] -->|USSD / voice call| at[Africa's Talking]
@@ -21,10 +28,17 @@ flowchart LR
     api -->|SMS receipt| at
 ```
 
-1. The merchant creates an NWC connection in their wallet, limited to `pay_invoice` and `get_balance` with a daily budget, and links it to their phone number.
-2. They dial the USSD code, choose **Tura Kudi**, enter the recipient and an amount in naira, and confirm with a PIN.
-3. offTap converts naira to sats at the live rate, fetches an invoice from the recipient's Lightning Address, and asks the merchant's wallet to pay it over NWC.
-4. An SMS receipt is sent.
+| Layer | Technology | Code |
+|---|---|---|
+| Telecom gateway | Africa's Talking USSD, Voice and SMS | in progress |
+| Server | Node.js, TypeScript, Fastify | [src/server.ts](src/server.ts) |
+| Payment flow | Naira quote, invoice, pay | [src/payments.ts](src/payments.ts) |
+| Wallet access | Nostr Wallet Connect (NIP-47) via `@getalby/sdk` | [src/lightning/nwc.ts](src/lightning/nwc.ts) |
+| Recipient lookup | Lightning Address (LNURL-pay) | [src/lightning/lnaddress.ts](src/lightning/lnaddress.ts) |
+| Rate oracle | Yadio, CoinGecko fallback, 60s cache | [src/rates.ts](src/rates.ts) |
+| Voice | Hausa speech recognition and intent parsing | planned |
+
+The server is the only component offTap runs. The wallet stays with the merchant, and the server reaches it through a Nostr relay using the connection the merchant issued.
 
 ## Custody model
 
