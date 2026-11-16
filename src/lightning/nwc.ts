@@ -10,6 +10,7 @@ export type WalletSummary = {
   budgetSats?: number;
   budgetUsedSats?: number;
   budgetRenewal?: string;
+  lightningAddress?: string;
 };
 
 export type PaymentResult = { preimage: string; feesPaidSats: number };
@@ -58,6 +59,8 @@ export async function describeWallet(nwcUri: string): Promise<WalletSummary> {
       canPay: info.methods.includes("pay_invoice"),
       canReadBalance: info.methods.includes("get_balance"),
     };
+    const lightningAddress = info.lud16 ?? client.lud16;
+    if (lightningAddress) summary.lightningAddress = lightningAddress;
     if (info.methods.includes("get_budget")) {
       const budget = await client.getBudget();
       if ("total_budget" in budget) {
