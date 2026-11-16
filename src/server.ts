@@ -1,23 +1,108 @@
-import Fastify from "fastify";
+import { timingSafeEqual } from "node:crypto";
+import { join } from "node:path";
+import Fastify, { LogController } from "fastify";
 import formbody from "@fastify/formbody";
 import { config } from "./config.js";
-import { PaymentError, quoteNgn } from "./payments.js";
+import { Store } from "./db.js";
+import { describeWallet, getBalanceSats } from "./lightning/nwc.js";
+import { PaymentError, quoteNgn, sendNgn } from "./payments.js";
+import { getRate } from "./rates.js";
+import { createSmsSender, type SmsSender } from "./sms.js";
+import { createUssdHandler, type Wallet } from "./ussd/handler.js";
+import { msg } from "./ussd/messages.js";
+import { registerLinkRoutes } from "./web/link.js";
+import { registerSimulatorRoutes } from "./web/sim.js";
 
-export function buildServer() {
-  const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? "info" } });
+export type ServerOptions = {
+  store?: Store;
+  wallet?: Wallet;
+  sms?: SmsSender;
+  describeWallet?: typeof describeWallet;
+  serverSecret?: string;
+  ussdWebhookToken?: string;
+  simulator?: boolean;
+  logger?: boolean;
+};
+
+const liveWallet: Wallet = {
+  quote: quoteNgn,
+  send: sendNgn,
+  balanceSats: getBalanceSats,
+  ngnPerBtc: async () => (await getRate()).ngnPerBtc,
+};
+
+function sameToken(a: string, b: string): boolean {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
+}
+
+export function buildServer(options: ServerOptions = {}) {
+  const app = Fastify({
+    logger: options.logger === false ? false : { level: process.env.LOG_LEVEL ?? "info" },
+    logController: new LogController({ disableRequestLogging: true }),
+    trustProxy: true,
+  });
   app.register(formbody);
+
+  const store = options.store ?? new Store(join(config.dataDir, "offtap.db"));
+  const serverSecret = options.serverSecret ?? config.serverSecret;
+  const sms = options.sms ?? createSmsSender(store, (err) => app.log.warn({ err: err.message }, "sms delivery failed"));
+  const token = options.ussdWebhookToken ?? config.ussdWebhookToken;
+  const simulator = options.simulator ?? !config.africasTalking.enabled;
+
+  const handleUssd = createUssdHandler({
+    store,
+    sms,
+    wallet: options.wallet ?? liveWallet,
+    serverSecret,
+    publicUrl: config.publicUrl,
+    dailyLimitSats: config.dailyLimitSats,
+    maxPaymentSats: config.maxPaymentSats,
+  });
 
   app.get("/health", async () => ({ ok: true }));
 
   app.get<{ Querystring: { ngn?: string } }>("/quote", async (req, reply) => {
-    const amountNgn = Number(req.query.ngn);
     try {
-      return await quoteNgn(amountNgn);
+      return await quoteNgn(Number(req.query.ngn));
     } catch (err) {
       if (err instanceof PaymentError) return reply.code(400).send({ error: err.code, message: err.message });
       req.log.error({ err: (err as Error).message }, "quote failed");
       return reply.code(502).send({ error: "RATE_UNAVAILABLE", message: "Could not fetch the BTC/NGN rate" });
     }
+  });
+
+  type UssdBody = { sessionId?: string; phoneNumber?: string; text?: string };
+  app.post<{ Body: UssdBody; Params: { token?: string } }>("/ussd/:token?", async (req, reply) => {
+    reply.type("text/plain");
+    if (token && !sameToken(req.params.token ?? "", token)) return reply.code(403).send("END Forbidden");
+    const body = req.body ?? {};
+    if (!body.sessionId || !body.phoneNumber) return reply.code(400).send(`END ${msg.error}`);
+    try {
+      const result = await handleUssd({ sessionId: body.sessionId, phoneNumber: body.phoneNumber, text: body.text ?? "" });
+      result.background?.catch((err: Error) => req.log.error({ err: err.message }, "ussd background task failed"));
+      return result.reply;
+    } catch (err) {
+      req.log.error({ err: (err as Error).message }, "ussd request failed");
+      return `END ${msg.error}`;
+    }
+  });
+
+  registerLinkRoutes(app, {
+    store,
+    sms,
+    describeWallet: options.describeWallet ?? describeWallet,
+    serverSecret,
+    ussdCode: config.ussdCode,
+  });
+
+  if (simulator) {
+    registerSimulatorRoutes(app, { store, ussdCode: config.ussdCode, ussdPath: token ? `/ussd/${token}` : "/ussd" });
+  }
+
+  app.addHook("onClose", async () => {
+    if (!options.store) store.close();
   });
 
   return app;
