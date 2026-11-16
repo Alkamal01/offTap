@@ -5,5 +5,19 @@ services:
       - "${PORT:-3000}:3000"
     environment:
       PORT: 3000
+      DATA_DIR: /data
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
+      AT_USERNAME: ${AT_USERNAME:-}
+      AT_API_KEY: ${AT_API_KEY:-}
+      AT_SENDER_ID: ${AT_SENDER_ID:-}
+      USSD_CODE: ${USSD_CODE:-*384*8822#}
+      USSD_WEBHOOK_TOKEN: ${USSD_WEBHOOK_TOKEN:-}
       MAX_PAYMENT_SATS: ${MAX_PAYMENT_SATS:-50000}
+      DAILY_LIMIT_SATS: ${DAILY_LIMIT_SATS:-100000}
+      SERVER_SECRET: ${SERVER_SECRET:-}
+    volumes:
+      - offtap-data:/data
     restart: unless-stopped
+
+volumes:
+  offtap-data:
