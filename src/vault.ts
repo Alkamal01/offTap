@@ -46,3 +46,17 @@ export async function open(sealed: Uint8Array, pin: string, serverSecret: string
 export function isValidPin(pin: string): boolean {
   return /^\d{4}$/.test(pin);
 }
+
+export function isWeakPin(pin: string): boolean {
+  return /^(\d)\1{3}$/.test(pin) || pin === "1234" || pin === "4321";
+}
+
+const SERVER_ONLY = "server-held";
+
+export function sealForServer(plaintext: string, serverSecret: string): Promise<Buffer> {
+  return seal(plaintext, SERVER_ONLY, serverSecret);
+}
+
+export function openForServer(sealed: Uint8Array, serverSecret: string): Promise<string> {
+  return open(sealed, SERVER_ONLY, serverSecret);
+}

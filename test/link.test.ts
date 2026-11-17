@@ -52,29 +52,30 @@ describe("wallet linking", () => {
       simulator: true,
       sms: async (phone, message) => store.addSms(phone, message),
       describeWallet: async () => summary,
+      provider: null,
     });
   });
   afterEach(() => app.close());
 
   it("links a wallet to the phone that requested the code", async () => {
     const code = store.createLinkCode(PHONE);
-    const res = await post({ code, nwc: NWC, pin: "1234", pin2: "1234", lnAddress: "Amina@Example.com" });
+    const res = await post({ code, nwc: NWC, pin: "4826", pin2: "4826", lnAddress: "Amina@Example.com" });
     expect(res.statusCode).toBe(200);
     const user = store.getUser(PHONE);
     expect(user?.lnAddress).toBe("amina@example.com");
-    expect(await open(user!.nwcSealed, "1234", SECRET)).toBe(NWC);
+    expect(await open(user!.nwcSealed, "4826", SECRET)).toBe(NWC);
     expect(store.phoneForLinkCode(code)).toBeUndefined();
     expect(res.body).not.toContain("walletconnect://a");
   });
 
   it("rejects wrong codes, bad input and connections that cannot pay", async () => {
     const code = store.createLinkCode(PHONE);
-    expect((await post({ code: "000000", nwc: NWC, pin: "1234", pin2: "1234" })).statusCode).toBe(400);
-    expect((await post({ code, nwc: "nonsense", pin: "1234", pin2: "1234" })).statusCode).toBe(400);
+    expect((await post({ code: "000000", nwc: NWC, pin: "4826", pin2: "4826" })).statusCode).toBe(400);
+    expect((await post({ code, nwc: "nonsense", pin: "4826", pin2: "4826" })).statusCode).toBe(400);
     expect((await post({ code, nwc: NWC, pin: "12", pin2: "12" })).statusCode).toBe(400);
-    expect((await post({ code, nwc: NWC, pin: "1234", pin2: "4321" })).statusCode).toBe(400);
+    expect((await post({ code, nwc: NWC, pin: "4826", pin2: "6284" })).statusCode).toBe(400);
     summary = { ...summary, canPay: false };
-    expect((await post({ code, nwc: NWC, pin: "1234", pin2: "1234" })).statusCode).toBe(400);
+    expect((await post({ code, nwc: NWC, pin: "4826", pin2: "4826" })).statusCode).toBe(400);
     expect(store.getUser(PHONE)).toBeUndefined();
   });
 

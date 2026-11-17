@@ -9,6 +9,7 @@ export type User = {
   lnAddress: string | null;
   failedPins: number;
   lockedUntil: number;
+  managedSealed: Uint8Array | null;
 };
 
 export type PaymentStatus = "pending" | "paid" | "failed";
@@ -62,6 +63,8 @@ export class Store {
     this.db = new DatabaseSync(path);
     this.db.exec("PRAGMA journal_mode = WAL");
     this.db.exec(SCHEMA);
+    const columns = this.db.prepare("PRAGMA table_info(users)").all() as { name: string }[];
+    if (!columns.some((c) => c.name === "managed_sealed")) this.db.exec("ALTER TABLE users ADD COLUMN managed_sealed BLOB");
   }
 
   close(): void {
@@ -70,7 +73,14 @@ export class Store {
 
   getUser(phone: string): User | undefined {
     const row = this.db.prepare("SELECT * FROM users WHERE phone = ?").get(phone) as
-      | { phone: string; nwc_sealed: Uint8Array; ln_address: string | null; failed_pins: number; locked_until: number }
+      | {
+          phone: string;
+          nwc_sealed: Uint8Array;
+          ln_address: string | null;
+          failed_pins: number;
+          locked_until: number;
+          managed_sealed: Uint8Array | null;
+        }
       | undefined;
     if (!row) return undefined;
     return {
@@ -79,17 +89,24 @@ export class Store {
       lnAddress: row.ln_address,
       failedPins: row.failed_pins,
       lockedUntil: row.locked_until,
+      managedSealed: row.managed_sealed,
     };
   }
 
-  saveUser(phone: string, nwcSealed: Uint8Array, lnAddress: string | null, now = Date.now()): void {
+  saveUser(
+    phone: string,
+    nwcSealed: Uint8Array,
+    lnAddress: string | null,
+    managedSealed: Uint8Array | null = null,
+    now = Date.now(),
+  ): void {
     this.db
       .prepare(
-        `INSERT INTO users (phone, nwc_sealed, ln_address, created_at) VALUES (?, ?, ?, ?)
+        `INSERT INTO users (phone, nwc_sealed, ln_address, managed_sealed, created_at) VALUES (?, ?, ?, ?, ?)
          ON CONFLICT(phone) DO UPDATE SET nwc_sealed = excluded.nwc_sealed, ln_address = excluded.ln_address,
-           failed_pins = 0, locked_until = 0`,
+           managed_sealed = excluded.managed_sealed, failed_pins = 0, locked_until = 0`,
       )
-      .run(phone, nwcSealed, lnAddress, now);
+      .run(phone, nwcSealed, lnAddress, managedSealed, now);
   }
 
   isLocked(user: User, now = Date.now()): boolean {

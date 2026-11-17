@@ -4,7 +4,7 @@ import { isLightningAddress } from "../lightning/lnaddress.js";
 import { isNwcUri, type WalletSummary } from "../lightning/nwc.js";
 import type { SmsSender } from "../sms.js";
 import { msg } from "../ussd/messages.js";
-import { isValidPin, seal } from "../vault.js";
+import { isValidPin, isWeakPin, seal } from "../vault.js";
 import { escapeHtml, page } from "./html.js";
 
 export type LinkDeps = {
@@ -94,6 +94,7 @@ export function registerLinkRoutes(app: FastifyInstance, deps: LinkDeps): void {
     if (!phone) return fail(400, "Link code is wrong or has expired. Dial the USSD code again to get a new one.");
     if (!isNwcUri(nwc)) return fail(400, "That is not a valid NWC connection string.");
     if (!isValidPin(pin)) return fail(400, "PIN must be exactly 4 digits.");
+    if (isWeakPin(pin)) return fail(400, "That PIN is too easy to guess. Choose another.");
     if (pin !== body.pin2) return fail(400, "The two PINs do not match.");
     if (lnInput && !isLightningAddress(lnInput)) return fail(400, "That is not a valid Lightning address.");
 
