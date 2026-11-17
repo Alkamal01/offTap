@@ -2,16 +2,17 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { Store } from "../src/db.js";
 import { PaymentError, type Quote } from "../src/payments.js";
 import { createUssdHandler, type Wallet } from "../src/ussd/handler.js";
-import { seal } from "../src/vault.js";
+import { open, seal } from "../src/vault.js";
+import type { WalletProvider } from "../src/wallets/provider.js";
 
 const SECRET = "test-secret";
 const NWC = `nostr+walletconnect://${"a".repeat(64)}?relay=wss://relay.example.com&secret=${"b".repeat(64)}`;
 const AMINA = "+2348030000001";
 const MUSA = "+2348030000002";
 
-type Sent = { nwcUri: string; recipient: string; sats: number };
+type Sent = { nwcUri: string; recipient: string; sats: number; receiverNwcUri?: string };
 
-function setup(overrides: Partial<Wallet> = {}) {
+function setup(overrides: Partial<Wallet> = {}, provider?: WalletProvider) {
   const store = new Store(":memory:");
   const sent: Sent[] = [];
   const texts: { phone: string; message: string }[] = [];
@@ -21,8 +22,8 @@ function setup(overrides: Partial<Wallet> = {}) {
       if (sats > 50_000) throw new PaymentError("AMOUNT_TOO_LARGE", "too large");
       return { amountNgn, sats, ngnPerBtc: 90_000_000, rateSource: "test" } satisfies Quote;
     },
-    send: async ({ nwcUri, recipient, quote }) => {
-      sent.push({ nwcUri, recipient, sats: quote.sats });
+    send: async ({ nwcUri, recipient, quote, receiverNwcUri }) => {
+      sent.push({ nwcUri, recipient, sats: quote.sats, ...(receiverNwcUri ? { receiverNwcUri } : {}) });
       return { ...quote, recipient, paymentHash: "hash", preimage: "pre", feesPaidSats: 2 };
     },
     balanceSats: async () => 21_000,
@@ -32,11 +33,13 @@ function setup(overrides: Partial<Wallet> = {}) {
   const handle = createUssdHandler({
     store,
     wallet,
+    ...(provider ? { provider } : {}),
     sms: async (phone, message) => {
       texts.push({ phone, message });
     },
     serverSecret: SECRET,
     publicUrl: "https://offtap.test",
+    ussdCode: "*384*1#",
     dailyLimitSats: 10_000,
     maxPaymentSats: 50_000,
     balanceWaitMs: 50,
@@ -163,5 +166,56 @@ describe("USSD: balance and receive", () => {
     const t = setup();
     await t.link(AMINA, "1234", "amina@example.com");
     expect(await t.dial(AMINA, "3")).toContain("amina@example.com");
+  });
+});
+
+describe("USSD: sign-up with a managed wallet", () => {
+  const uri = (n: string) => `nostr+walletconnect://${n.repeat(64)}?relay=wss://relay.example.com&secret=${"b".repeat(64)}`;
+  const provider = (): WalletProvider => {
+    const uris = [uri("c"), uri("d")];
+    return { name: "test", create: async () => ({ nwcUri: uris.shift()!, lnAddress: null }) };
+  };
+
+  it("creates a wallet from USSD with a chosen PIN", async () => {
+    const t = setup({}, provider());
+    expect(await t.dial(AMINA, "")).toMatch(/^CON .*Bude sabon wallet/s);
+    expect(await t.dial(AMINA, "1")).toMatch(/^CON .*PIN/);
+    expect(await t.dial(AMINA, "1*4826")).toMatch(/^CON /);
+    expect(await t.dial(AMINA, "1*4826*4826")).toMatch(/^END An bude wallet/);
+    const user = t.store.getUser(AMINA)!;
+    expect(await open(user.nwcSealed, "4826", SECRET)).toBe(uri("c"));
+    expect(t.texts.at(-1)?.phone).toBe(AMINA);
+    expect(await t.dial(AMINA, "")).toMatch(/^CON .*Tura Kudi/s);
+  });
+
+  it("rejects weak, malformed and mismatched PINs", async () => {
+    const t = setup({}, provider());
+    expect(await t.dial(AMINA, "1*1111")).toMatch(/^END .*sauki/);
+    expect(await t.dial(AMINA, "1*1234")).toMatch(/^END .*sauki/);
+    expect(await t.dial(AMINA, "1*12a4")).toMatch(/^END /);
+    expect(await t.dial(AMINA, "1*4826*4827")).toMatch(/^END /);
+    expect(t.store.getUser(AMINA)).toBeUndefined();
+  });
+
+  it("still offers linking your own wallet", async () => {
+    const t = setup({}, provider());
+    expect(await t.dial(AMINA, "2")).toMatch(/^END Lambar hadawa: \d{6}/);
+  });
+
+  it("reports a provider failure without creating a user", async () => {
+    const t = setup({}, { name: "down", create: async () => Promise.reject(new Error("down")) });
+    expect(await t.dial(AMINA, "1*4826*4826")).toMatch(/^END Ba a iya bude wallet/);
+    expect(t.store.getUser(AMINA)).toBeUndefined();
+  });
+
+  it("pays another managed wallet by phone number using an invoice from the recipient", async () => {
+    const t = setup({}, provider());
+    await t.dial(AMINA, "1*4826*4826");
+    await t.dial(MUSA, "1*7391*7391");
+    await t.dial(AMINA, "1*08030000002*1000", "p");
+    await t.dial(AMINA, "1*08030000002*1000*4826", "p");
+    expect(t.sent).toEqual([{ nwcUri: uri("c"), recipient: MUSA, sats: 1100, receiverNwcUri: uri("d") }]);
+    expect(t.texts.at(-1)).toMatchObject({ phone: MUSA });
+    expect(await t.dial(MUSA, "3")).toContain(MUSA);
   });
 });

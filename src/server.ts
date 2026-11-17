@@ -10,12 +10,14 @@ import { getRate } from "./rates.js";
 import { createSmsSender, type SmsSender } from "./sms.js";
 import { createUssdHandler, type Wallet } from "./ussd/handler.js";
 import { msg } from "./ussd/messages.js";
+import { providerFromConfig, type WalletProvider } from "./wallets/provider.js";
 import { registerLinkRoutes } from "./web/link.js";
 import { registerSimulatorRoutes } from "./web/sim.js";
 
 export type ServerOptions = {
   store?: Store;
   wallet?: Wallet;
+  provider?: WalletProvider | null;
   sms?: SmsSender;
   describeWallet?: typeof describeWallet;
   serverSecret?: string;
@@ -51,12 +53,16 @@ export function buildServer(options: ServerOptions = {}) {
   const token = options.ussdWebhookToken ?? config.ussdWebhookToken;
   const simulator = options.simulator ?? !config.africasTalking.enabled;
 
+  const provider = options.provider === undefined ? providerFromConfig(config) : options.provider;
+
   const handleUssd = createUssdHandler({
     store,
     sms,
     wallet: options.wallet ?? liveWallet,
+    ...(provider ? { provider } : {}),
     serverSecret,
     publicUrl: config.publicUrl,
+    ussdCode: config.ussdCode,
     dailyLimitSats: config.dailyLimitSats,
     maxPaymentSats: config.maxPaymentSats,
   });

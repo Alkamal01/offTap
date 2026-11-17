@@ -4,12 +4,19 @@ import { PaymentError, type Quote, type Receipt } from "../payments.js";
 import { normalisePhone } from "../phone.js";
 import { satsToNgn } from "../rates.js";
 import type { SmsSender } from "../sms.js";
-import { isValidPin, open, WrongPinError } from "../vault.js";
+import { isValidPin, isWeakPin, open, openForServer, seal, sealForServer, WrongPinError } from "../vault.js";
+import type { WalletProvider } from "../wallets/provider.js";
 import { msg } from "./messages.js";
 
 export type Wallet = {
   quote(amountNgn: number): Promise<Quote>;
-  send(args: { nwcUri: string; recipient: string; amountNgn: number; quote: Quote }): Promise<Receipt>;
+  send(args: {
+    nwcUri: string;
+    recipient: string;
+    receiverNwcUri?: string;
+    amountNgn: number;
+    quote: Quote;
+  }): Promise<Receipt>;
   balanceSats(nwcUri: string): Promise<number>;
   ngnPerBtc(): Promise<number>;
 };
@@ -18,8 +25,10 @@ export type UssdDeps = {
   store: Store;
   sms: SmsSender;
   wallet: Wallet;
+  provider?: WalletProvider;
   serverSecret: string;
   publicUrl: string;
+  ussdCode: string;
   dailyLimitSats: number;
   maxPaymentSats: number;
   balanceWaitMs?: number;
@@ -29,7 +38,7 @@ export type UssdDeps = {
 export type UssdRequest = { sessionId: string; phoneNumber: string; text: string };
 export type UssdResult = { reply: string; background?: Promise<void> };
 
-type Recipient = { address: string; label: string; phone?: string };
+type Recipient = { address?: string; label: string; phone?: string; managedSealed?: Uint8Array };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SESSION_MS = 5 * 60 * 1000;
@@ -61,9 +70,10 @@ export function createUssdHandler(deps: UssdDeps) {
     if (isLightningAddress(value)) return { address: value.toLowerCase(), label: value.toLowerCase() };
     const phone = normalisePhone(value);
     if (!phone) return "invalid";
-    const address = store.getUser(phone)?.lnAddress;
-    if (!address) return "unregistered";
-    return { address, label: phone, phone };
+    const user = store.getUser(phone);
+    if (user?.managedSealed) return { label: phone, phone, managedSealed: user.managedSealed };
+    if (!user?.lnAddress) return "unregistered";
+    return { address: user.lnAddress, label: phone, phone };
   }
 
   async function unlock(user: User, pin: string): Promise<{ nwcUri: string } | UssdResult> {
@@ -84,6 +94,26 @@ export function createUssdHandler(deps: UssdDeps) {
     const code = store.createLinkCode(phone, now());
     const url = `${deps.publicUrl}/link`;
     return end(msg.linkCode(code, url), sms(phone, msg.smsLinkCode(code, url)));
+  }
+
+  async function signUp(phone: string, parts: string[], provider: WalletProvider): Promise<UssdResult> {
+    if (parts.length === 1) return con(msg.choosePin);
+    const pin = parts[1] ?? "";
+    if (!isValidPin(pin)) return end(msg.invalidPin);
+    if (isWeakPin(pin)) return end(msg.weakPin);
+    if (parts.length === 2) return con(msg.repeatPin);
+    if (parts[2] !== pin) return end(msg.pinMismatch);
+    try {
+      const created = await provider.create();
+      const [sealed, managed] = await Promise.all([
+        seal(created.nwcUri, pin, deps.serverSecret),
+        sealForServer(created.nwcUri, deps.serverSecret),
+      ]);
+      store.saveUser(phone, sealed, created.lnAddress, managed, now());
+    } catch {
+      return end(msg.walletFailed);
+    }
+    return end(msg.walletCreated(deps.ussdCode), sms(phone, msg.smsWalletCreated(deps.ussdCode)));
   }
 
   async function send(user: User, sessionId: string, parts: string[]): Promise<UssdResult> {
@@ -130,7 +160,16 @@ export function createUssdHandler(deps: UssdDeps) {
     );
     const background = (async () => {
       try {
-        const receipt = await wallet.send({ nwcUri: unlocked.nwcUri, recipient: recipient.address, amountNgn, quote });
+        const receiverNwcUri = recipient.managedSealed
+          ? await openForServer(recipient.managedSealed, deps.serverSecret)
+          : undefined;
+        const receipt = await wallet.send({
+          nwcUri: unlocked.nwcUri,
+          recipient: recipient.address ?? recipient.label,
+          ...(receiverNwcUri ? { receiverNwcUri } : {}),
+          amountNgn,
+          quote,
+        });
         store.finishPayment(paymentId, "paid", { paymentHash: receipt.paymentHash, feesSats: receipt.feesPaidSats });
         await sms(user.phone, msg.smsPaid(quote.amountNgn, quote.sats, recipient.label, receipt.feesPaidSats));
         if (recipient.phone) await sms(recipient.phone, msg.smsReceived(quote.amountNgn, quote.sats, user.phone));
@@ -178,8 +217,11 @@ export function createUssdHandler(deps: UssdDeps) {
     const user = store.getUser(phone);
 
     if (!user) {
-      if (parts.length === 0) return con(msg.menuUnlinked);
-      return parts[0] === "1" && parts.length === 1 ? startLinking(phone) : end(msg.invalidChoice);
+      const provider = deps.provider;
+      if (parts.length === 0) return con(provider ? msg.menuNew : msg.menuUnlinked);
+      if (provider && parts[0] === "1") return parts.length <= 3 ? signUp(phone, parts, provider) : end(msg.invalidChoice);
+      const linkChoice = provider ? "2" : "1";
+      return parts[0] === linkChoice && parts.length === 1 ? startLinking(phone) : end(msg.invalidChoice);
     }
 
     if (parts.length === 0) return con(msg.menu);
@@ -189,6 +231,7 @@ export function createUssdHandler(deps: UssdDeps) {
       case "2":
         return balance(user, parts);
       case "3":
+        if (user.managedSealed) return end(msg.receivePhone(user.phone));
         return end(user.lnAddress ? msg.receive(user.lnAddress) : msg.noReceive);
       case "4":
         return startLinking(phone);

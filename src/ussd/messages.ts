@@ -3,6 +3,15 @@ const n = (value: number) => Math.round(value).toLocaleString("en-NG");
 export const msg = {
   menu: "offTap\n1. Tura Kudi (Send)\n2. Duba Balance\n3. Karbi Kudi (Receive)\n4. Saita Wallet (Link)",
   menuUnlinked: "Barka da zuwa offTap.\nBa a hada wallet dinka ba.\n1. Hada wallet (Link wallet)",
+  menuNew: "Barka da zuwa offTap.\n1. Bude sabon wallet (New wallet)\n2. Hada naka wallet (Link own wallet)",
+  choosePin: "Zabi PIN mai lambobi 4. Kar ka gaya wa kowa:",
+  repeatPin: "Maimaita PIN din:",
+  invalidPin: "PIN dole ya zama lambobi 4.",
+  weakPin: "Wannan PIN ya yi sauki. Zabi wani.",
+  pinMismatch: "PIN din ba su yi daidai ba. Sake farawa.",
+  walletCreated: (ussdCode: string) => `An bude wallet dinka. Danna ${ussdCode} don tura ko karbar kudi.`,
+  walletFailed: "Ba a iya bude wallet ba yanzu. Sake gwadawa.",
+  receivePhone: (phone: string) => `Don karbar kudi, a tura zuwa lambar wayarka:\n${phone}`,
   askRecipient: "Shigar da lambar waya ko Lightning address na mai karba:",
   askAmount: "Shigar da adadin kudi a Naira:",
   confirm: (ngn: number, sats: number, recipient: string) =>
@@ -28,6 +37,8 @@ export const msg = {
   error: "An samu matsala. Sake gwadawa.",
 
   smsLinkCode: (code: string, url: string) => `offTap: Lambar hadawa ${code}. Bude ${url}. Kar ka ba kowa wannan lambar.`,
+  smsWalletCreated: (ussdCode: string) =>
+    `offTap: An bude wallet dinka. Danna ${ussdCode} don fara amfani. Kar ka ba kowa PIN dinka.`,
   smsLinked: (ussdCode: string) => `offTap: An hada wallet dinka. Danna ${ussdCode} don fara amfani.`,
   smsPaid: (ngn: number, sats: number, recipient: string, feeSats: number) =>
     `offTap: An tura N${n(ngn)} (${n(sats)} sats) zuwa ${recipient}. Kudin aiki: ${n(feeSats)} sats.`,
