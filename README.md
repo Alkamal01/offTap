@@ -102,17 +102,25 @@ docker compose --profile wallet up --build
 
 Open http://localhost:8080, set it up and fund it, then under Connections create one for offTap with only "pay invoices" and "read balance" enabled and a daily budget. Paste the connection string into the link page.
 
-## Try a payment from the command line
+## Try it without real money
 
-Create an NWC connection in your wallet (for example Alby Hub) with a small budget, then:
+Alby runs a faucet that hands out NWC wallets filled with test sats. They behave like real wallets but hold no value, and they can pay each other.
 
 ```bash
-export NWC_URI='nostr+walletconnect://...'
-npm run cli -- wallet                      # what the connection is allowed to do
-npm run cli -- balance
-npm run cli -- quote 5000                  # naira to sats
-npm run cli -- pay name@example.com 500    # pay NGN 500 to a Lightning Address
+npm run cli -- test-wallet          # prints a Lightning address and an NWC_URI line
+npm run cli -- test-wallet 1000     # a second one to receive
 ```
+
+Paste the first `NWC_URI=...` line into `.env` (or into the link page), then pay the second wallet's Lightning address:
+
+```bash
+npm run cli -- wallet                        # what the connection is allowed to do
+npm run cli -- balance
+npm run cli -- quote 5000                    # naira to sats
+npm run cli -- pay <lightning-address> 500   # pay NGN 500
+```
+
+With a real wallet the commands are the same; only the connection string changes.
 
 ## Tests
 
