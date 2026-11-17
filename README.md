@@ -92,6 +92,16 @@ npm run dev
 
 Copy `.env.example` to `.env`, set `AT_USERNAME` and `AT_API_KEY`, and point your USSD channel's callback URL at `https://<your-host>/ussd`. Setting these turns the simulator off and sends real SMS.
 
+### With a self-hosted wallet
+
+The compose file includes [Alby Hub](https://github.com/getAlby/hub), an open-source Lightning wallet that issues NWC connections. Start it alongside offTap:
+
+```bash
+docker compose --profile wallet up --build
+```
+
+Open http://localhost:8080, set it up and fund it, then under Connections create one for offTap with only "pay invoices" and "read balance" enabled and a daily budget. Paste the connection string into the link page.
+
 ## Try a payment from the command line
 
 Create an NWC connection in your wallet (for example Alby Hub) with a small budget, then:

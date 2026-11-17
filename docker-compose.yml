@@ -19,5 +19,17 @@ services:
       - offtap-data:/data
     restart: unless-stopped
 
+  wallet:
+    image: ghcr.io/getalby/hub:latest
+    profiles: ["wallet"]
+    ports:
+      - "127.0.0.1:${WALLET_PORT:-8080}:8080"
+    environment:
+      WORK_DIR: /data
+    volumes:
+      - wallet-data:/data
+    restart: unless-stopped
+
 volumes:
   offtap-data:
+  wallet-data:
