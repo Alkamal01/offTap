@@ -46,6 +46,9 @@ export const config = {
     apiKey: atApiKey,
     senderId: str("AT_SENDER_ID"),
   },
+  walletProvider: (str("WALLET_PROVIDER") || "faucet") as "faucet" | "albyhub" | "none",
+  faucetSats: intFromEnv("FAUCET_SATS", 10_000),
+  albyHub: { url: str("ALBY_HUB_URL"), token: str("ALBY_HUB_TOKEN") },
   get serverSecret(): string {
     return (cachedSecret ??= loadServerSecret());
   },
