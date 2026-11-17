@@ -1,4 +1,4 @@
-import { NWCClient } from "@getalby/sdk/nwc";
+import { Nip47NetworkError, NWCClient } from "@getalby/sdk/nwc";
 
 const MSATS_PER_SAT = 1000;
 
@@ -24,12 +24,22 @@ export function isNwcUri(value: string): boolean {
   }
 }
 
+const CONNECT_ATTEMPTS = 3;
+
+function failedBeforeSending(err: unknown): boolean {
+  return err instanceof Nip47NetworkError && err.message.startsWith("Failed to connect");
+}
+
 export async function withWallet<T>(nwcUri: string, fn: (client: NWCClient) => Promise<T>): Promise<T> {
-  const client = new NWCClient({ nostrWalletConnectUrl: nwcUri.trim() });
-  try {
-    return await fn(client);
-  } finally {
-    client.close();
+  for (let attempt = 1; ; attempt++) {
+    const client = new NWCClient({ nostrWalletConnectUrl: nwcUri.trim() });
+    try {
+      return await fn(client);
+    } catch (err) {
+      if (attempt >= CONNECT_ATTEMPTS || !failedBeforeSending(err)) throw err;
+    } finally {
+      client.close();
+    }
   }
 }
 
