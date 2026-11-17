@@ -1,6 +1,6 @@
 import { config } from "./config.js";
 import { requestInvoice } from "./lightning/lnaddress.js";
-import { payInvoice } from "./lightning/nwc.js";
+import { makeInvoice, payInvoice } from "./lightning/nwc.js";
 import { getRate, ngnToSats } from "./rates.js";
 
 export type Quote = { amountNgn: number; sats: number; ngnPerBtc: number; rateSource: string };
@@ -39,11 +39,14 @@ export async function quoteNgn(amountNgn: number): Promise<Quote> {
 export async function sendNgn(args: {
   nwcUri: string;
   recipient: string;
+  receiverNwcUri?: string;
   amountNgn: number;
   quote?: Quote;
 }): Promise<Receipt> {
   const quote = args.quote ?? (await quoteNgn(args.amountNgn));
-  const { invoice, paymentHash } = await requestInvoice(args.recipient, quote.sats, "offTap");
+  const { invoice, paymentHash } = args.receiverNwcUri
+    ? await makeInvoice(args.receiverNwcUri, quote.sats, "offTap")
+    : await requestInvoice(args.recipient, quote.sats, "offTap");
   const paid = await payInvoice(args.nwcUri, invoice);
   return { ...quote, recipient: args.recipient, paymentHash, ...paid };
 }

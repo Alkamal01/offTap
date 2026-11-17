@@ -60,6 +60,13 @@ export async function payInvoice(nwcUri: string, invoice: string): Promise<Payme
   });
 }
 
+export async function makeInvoice(nwcUri: string, sats: number, description: string): Promise<{ invoice: string; paymentHash: string }> {
+  return withWallet(nwcUri, async (client) => {
+    const tx = await client.makeInvoice({ amount: sats * MSATS_PER_SAT, description });
+    return { invoice: tx.invoice, paymentHash: tx.payment_hash };
+  });
+}
+
 export async function describeWallet(nwcUri: string): Promise<WalletSummary> {
   return withWallet(nwcUri, async (client) => {
     const info = await client.getInfo();
