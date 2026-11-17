@@ -81,6 +81,7 @@ export function buildServer(options: ServerOptions = {}) {
     if (!body.sessionId || !body.phoneNumber) return reply.code(400).send(`END ${msg.error}`);
     try {
       const result = await handleUssd({ sessionId: body.sessionId, phoneNumber: body.phoneNumber, text: body.text ?? "" });
+      req.log.info({ step: body.text ? body.text.split("*").length : 0, open: result.reply.startsWith("CON") }, "ussd");
       result.background?.catch((err: Error) => req.log.error({ err: err.message }, "ussd background task failed"));
       return result.reply;
     } catch (err) {
