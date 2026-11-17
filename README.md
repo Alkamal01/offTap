@@ -1,6 +1,6 @@
 # offTap
 
-Lightning payments in Hausa over USSD and voice, for merchants in Northern Nigeria whose mobile data is unreliable. Payments are made from the merchant's own wallet through Nostr Wallet Connect (NIP-47).
+Lightning payments in Hausa over USSD and voice, for traders in Northern Nigeria whose bank network and mobile data keep failing. Every wallet is driven through Nostr Wallet Connect (NIP-47), whether offTap opened it for you or you brought your own.
 
 ## The problem
 
@@ -8,23 +8,33 @@ Traders in markets like Kantin Kwari and Dawanau lose sales when bank transfers 
 
 ## How it works
 
-A merchant links their wallet once, while they have data. After that they can pay from any phone signal, in Hausa, by dialling a USSD code or making a voice call.
+A trader dials the USSD code and gets a wallet in under a minute. No smartphone, no data, no app.
 
-1. The merchant creates an NWC connection in their wallet, limited to `pay_invoice` and `get_balance` with a daily budget, and links it to their phone number.
-2. They dial the USSD code, choose **Tura Kudi**, enter the recipient and an amount in naira, and confirm with a PIN.
-3. offTap converts naira to sats at the live rate, fetches an invoice from the recipient's Lightning Address, and asks the merchant's wallet to pay it over NWC.
-4. An SMS receipt is sent.
+1. Dial the code, choose **Bude sabon wallet** and pick a 4-digit PIN. The wallet is ready.
+2. To pay, choose **Tura Kudi**, enter a phone number or Lightning address and an amount in naira.
+3. offTap shows the amount in sats at the live rate. The trader confirms with their PIN.
+4. The payment settles over Lightning and both sides get an SMS.
+
+### Two kinds of wallet
+
+| | Easy wallet | Own wallet |
+|---|---|---|
+| Set up | Entirely over USSD | Link an NWC connection on a web page |
+| Funds are held | On the offTap operator's Lightning node, in a separate sub-wallet per user | In the merchant's own wallet |
+| For | Anyone with any phone | Merchants who want full control |
+
+Both use the same menu, the same phone number and the same PIN flow. A trader can start with the easy wallet and switch to their own from the menu (**Saita Wallet**) at any time.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    phone[Merchant's phone] -->|USSD / voice call| at[Africa's Talking]
+    phone[Trader's phone] -->|USSD / voice call| at[Africa's Talking]
     at -->|webhook| api[offTap server]
     api -->|BTC/NGN rate| oracle[Yadio / CoinGecko]
     api -->|LNURL-pay| recipient[Recipient's Lightning Address]
     api -->|NIP-47 pay_invoice| relay[Nostr relay]
-    relay --> wallet[Merchant's own wallet]
+    relay --> wallet[Wallet: easy or own]
     api -->|SMS receipt| at
 ```
 
@@ -32,6 +42,7 @@ flowchart LR
 |---|---|---|
 | Telecom gateway | Africa's Talking USSD and SMS | [src/ussd/](src/ussd/), [src/sms.ts](src/sms.ts) |
 | Wallet linking | Web form, one-time code, PIN-sealed storage | [src/web/link.ts](src/web/link.ts), [src/vault.ts](src/vault.ts) |
+| Easy wallets | NWC faucet for testing, Alby Hub sub-wallets for real sats | [src/wallets/provider.ts](src/wallets/provider.ts) |
 | Storage | SQLite | [src/db.ts](src/db.ts) |
 | Server | Node.js, TypeScript, Fastify | [src/server.ts](src/server.ts) |
 | Payment flow | Naira quote, invoice, pay | [src/payments.ts](src/payments.ts) |
@@ -44,16 +55,20 @@ The server is the only component offTap runs. The wallet stays with the merchant
 
 ## Custody and security
 
-offTap never holds wallet keys or funds. It holds an NWC connection string that can only spend up to the budget the merchant set in their own wallet, and the merchant can revoke it from the wallet at any time.
+**The easy wallet is custodial.** The operator of the offTap server holds the funds, the same as existing USSD Bitcoin services. It exists because asking a market trader to run a Lightning node is not realistic. Keep small amounts in it.
 
-- **Linking proves phone ownership.** The link code is issued inside a USSD session, so only the person holding the SIM can attach a wallet to that number.
-- **The connection string is sealed with the PIN.** It is encrypted with AES-256-GCM under a key derived from the PIN and a server secret (scrypt). It is decrypted only for the moment of a payment.
-- **Three wrong PINs lock the account for an hour.**
-- **Server-side limits.** A cap per payment and per 24 hours applies on top of the wallet budget.
-- **The amount is fixed at confirmation.** The merchant sees naira and sats before entering the PIN, and the invoice returned by the recipient is checked against that amount.
+**The own wallet is not.** offTap holds only an NWC connection string that can spend up to the budget the merchant set in their wallet, and the merchant can revoke it there at any time. The worst case is the loss of that budget, not the wallet balance.
+
+In both modes:
+
+- **Phone ownership is proven by the SIM.** Sign-up and link codes are issued inside a USSD session, so only the person holding the SIM can create or attach a wallet for that number.
+- **Connections are encrypted at rest** with AES-256-GCM. For own wallets the key is derived from the PIN and a server secret (scrypt), and the connection is decrypted only for the moment of a payment.
+- **Three wrong PINs lock the account for an hour.** Obvious PINs such as 1234 or 1111 are refused.
+- **Server-side limits.** A cap per payment and per 24 hours applies on top of any wallet budget.
+- **The amount is fixed at confirmation.** The trader sees naira and sats before entering the PIN, and the invoice is checked against that amount.
 - **Nothing sensitive is logged.** Request bodies, phone numbers and PINs are kept out of logs.
 
-What this does not protect against: a 4-digit PIN travels through the mobile network and the server in the clear, so the operator of an offTap server could spend up to the wallet budget. The budget is the real limit on loss. Run your own server or use one you trust, and keep the budget small.
+What this does not protect against: a 4-digit PIN travels through the mobile network and the server in the clear, so an offTap operator could spend from an easy wallet, or up to the budget of a linked one. Run your own server or use one you trust.
 
 ## Status
 
@@ -63,6 +78,7 @@ What this does not protect against: a 4-digit PIN travels through the mobile net
 | Lightning Address resolver with amount verification | Done |
 | BTC/NGN rate with fallback source | Done |
 | Hausa USSD menu: send, balance, receive, link wallet | Done |
+| Sign-up over USSD with an easy wallet (test sats or Alby Hub sub-wallets) | Done |
 | Wallet linking with a one-time code and PIN | Done |
 | SMS receipts through Africa's Talking | Done, not yet tested against a live account |
 | Built-in phone simulator | Done |
@@ -74,12 +90,14 @@ What this does not protect against: a 4-digit PIN travels through the mobile net
 docker compose up --build
 ```
 
-Then open http://localhost:3000/sim. It is a phone simulator that talks to the server the same way Africa's Talking does, with an SMS inbox underneath.
+Then open http://localhost:3000/sim. It is a phone simulator that talks to the server the same way Africa's Talking does, with an SMS inbox underneath. Out of the box, new wallets are test wallets holding 10,000 test sats with no real value, so the whole flow can be tried for free.
 
-1. Press **Dial**, choose `1` to get a link code.
-2. Open http://localhost:3000/link, enter the code, an NWC connection string from your wallet, and a 4-digit PIN.
-3. Dial again: `1` to send, enter a Lightning address or a linked phone number, an amount in naira, then your PIN.
-4. The receipt appears in the SMS inbox.
+1. Press **Dial**, choose `1`, and enter a PIN twice. You now have a wallet.
+2. Change the phone number at the top to a second number and do the same.
+3. Switch back to the first number. Dial, choose `1` to send, enter the second number, an amount in naira, then your PIN.
+4. Both numbers get an SMS, and `2` shows the new balance.
+
+To link your own wallet instead, choose `2` on the first screen and follow the link code to http://localhost:3000/link.
 
 Without Docker (Node 22.13+):
 
@@ -92,15 +110,18 @@ npm run dev
 
 Copy `.env.example` to `.env`, set `AT_USERNAME` and `AT_API_KEY`, and point your USSD channel's callback URL at `https://<your-host>/ussd`. Setting these turns the simulator off and sends real SMS.
 
-### With a self-hosted wallet
+### With real sats
 
-The compose file includes [Alby Hub](https://github.com/getAlby/hub), an open-source Lightning wallet that issues NWC connections. Start it alongside offTap:
+The compose file includes [Alby Hub](https://github.com/getAlby/hub), an open-source Lightning node. Start it alongside offTap:
 
 ```bash
 docker compose --profile wallet up --build
 ```
 
-Open http://localhost:8080, set it up and fund it, then under Connections create one for offTap with only "pay invoices" and "read balance" enabled and a daily budget. Paste the connection string into the link page.
+Open http://localhost:8080, set it up and fund it. Then either:
+
+- **Easy wallets on your hub:** create an API token in the hub, and set `WALLET_PROVIDER=albyhub` and `ALBY_HUB_TOKEN` in `.env`. Each sign-up gets its own isolated sub-wallet.
+- **Your own wallet:** under Connections create one for offTap with only "pay invoices" and "read balance" enabled and a daily budget, and paste it into the link page.
 
 ## Try it without real money
 

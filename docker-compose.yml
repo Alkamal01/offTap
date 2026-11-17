@@ -15,6 +15,10 @@ services:
       MAX_PAYMENT_SATS: ${MAX_PAYMENT_SATS:-50000}
       DAILY_LIMIT_SATS: ${DAILY_LIMIT_SATS:-100000}
       SERVER_SECRET: ${SERVER_SECRET:-}
+      WALLET_PROVIDER: ${WALLET_PROVIDER:-faucet}
+      FAUCET_SATS: ${FAUCET_SATS:-10000}
+      ALBY_HUB_URL: ${ALBY_HUB_URL:-http://wallet:8080/api}
+      ALBY_HUB_TOKEN: ${ALBY_HUB_TOKEN:-}
     volumes:
       - offtap-data:/data
     restart: unless-stopped
