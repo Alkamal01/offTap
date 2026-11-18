@@ -24,7 +24,7 @@ export function isNwcUri(value: string): boolean {
   }
 }
 
-const CONNECT_ATTEMPTS = 3;
+const CONNECT_ATTEMPTS = 4;
 
 function failedBeforeSending(err: unknown): boolean {
   return err instanceof Nip47NetworkError && err.message.startsWith("Failed to connect");
@@ -40,6 +40,7 @@ export async function withWallet<T>(nwcUri: string, fn: (client: NWCClient) => P
     } finally {
       client.close();
     }
+    await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
   }
 }
 
