@@ -14,11 +14,14 @@ export type User = {
 
 export type PaymentStatus = "pending" | "paid" | "failed";
 
+export type Contact = { name: string; recipient: string };
+
 export type SmsRecord = { id: number; phone: string; message: string; createdAt: number };
 
 const MAX_PIN_ATTEMPTS = 3;
 const LOCK_MS = 60 * 60 * 1000;
 const LINK_CODE_MS = 15 * 60 * 1000;
+export const MAX_CONTACTS = 20;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
@@ -47,6 +50,13 @@ CREATE TABLE IF NOT EXISTS payments (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS payments_phone_time ON payments (phone, created_at);
+CREATE TABLE IF NOT EXISTS contacts (
+  owner TEXT NOT NULL,
+  name TEXT NOT NULL,
+  recipient TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (owner, name)
+);
 CREATE TABLE IF NOT EXISTS sms_outbox (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   phone TEXT NOT NULL,
@@ -174,6 +184,26 @@ export class Store {
   paymentStatus(id: number): PaymentStatus | undefined {
     const row = this.db.prepare("SELECT status FROM payments WHERE id = ?").get(id) as { status: PaymentStatus } | undefined;
     return row?.status;
+  }
+
+  saveContact(owner: string, name: string, recipient: string, now = Date.now()): boolean {
+    const existing = this.contacts(owner);
+    if (existing.length >= MAX_CONTACTS && !existing.some((c) => c.name === name)) return false;
+    this.db
+      .prepare(
+        `INSERT INTO contacts (owner, name, recipient, created_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT(owner, name) DO UPDATE SET recipient = excluded.recipient`,
+      )
+      .run(owner, name, recipient, now);
+    return true;
+  }
+
+  contacts(owner: string): Contact[] {
+    return this.db.prepare("SELECT name, recipient FROM contacts WHERE owner = ? ORDER BY name").all(owner) as Contact[];
+  }
+
+  deleteContact(owner: string, name: string): void {
+    this.db.prepare("DELETE FROM contacts WHERE owner = ? AND name = ?").run(owner, name);
   }
 
   addSms(phone: string, message: string, now = Date.now()): void {
