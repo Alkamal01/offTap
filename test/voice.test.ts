@@ -238,3 +238,87 @@ describe("voice call", () => {
     expect((await calls.heard("d", "tura dubu daya zuwa musa")).expect).toBe("end");
   });
 });
+
+describe("voice over HTTP", () => {
+  const SECRET = "test-secret";
+  const NWC = `nostr+walletconnect://${"a".repeat(64)}?relay=wss://relay.example.com&secret=${"b".repeat(64)}`;
+  const AMINA = "+2348030000001";
+  const MUSA = "+2348030000002";
+
+  const build = async () => {
+    const { buildServer } = await import("../src/server.js");
+    const store = new Store(":memory:");
+    const sent: string[] = [];
+    store.saveUser(AMINA, await seal(NWC, "4826", SECRET), null);
+    store.saveUser(MUSA, await seal(NWC, "7391", SECRET), "musa@example.com");
+    store.saveContact(AMINA, "musa", MUSA);
+    const app = buildServer({
+      store,
+      serverSecret: SECRET,
+      logger: false,
+      simulator: true,
+      provider: null,
+      sms: async () => {},
+      transcribe: async (audio) => new TextDecoder().decode(audio),
+      wallet: {
+        quote: async (amountNgn) => ({ amountNgn, sats: amountNgn, ngnPerBtc: 1e8, rateSource: "test" }),
+        send: async ({ recipient, quote }) => {
+          sent.push(recipient);
+          return { ...quote, recipient, paymentHash: "h", preimage: "p", feesPaidSats: 0 };
+        },
+        balanceSats: async () => 1,
+        ngnPerBtc: async () => 1e8,
+      },
+    });
+    const post = (url: string, fields: Record<string, string>) =>
+      app.inject({
+        method: "POST",
+        url,
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        payload: new URLSearchParams(fields).toString(),
+      });
+    return { app, sent, post };
+  };
+
+  it("answers Africa's Talking in its XML and ignores a PIN nobody asked for", async () => {
+    const { app, sent, post } = await build();
+    const call = { sessionId: "at1", isActive: "1", direction: "Inbound", callerNumber: AMINA };
+    const first = await post("/voice", call);
+    expect(first.headers["content-type"]).toContain("application/xml");
+    expect(first.body).toMatch(/<Response><Record [^>]*><Say>Barka da zuwa offTap/);
+    expect((await post("/voice", call)).body).toContain("<Record");
+    expect((await post("/voice", { ...call, dtmfDigits: "4826" })).body).not.toMatch(/<Record|<GetDigits/);
+    expect(sent).toHaveLength(0);
+    await app.close();
+  });
+
+  it("runs a whole call through the simulator endpoints", async () => {
+    const { app, sent, post } = await build();
+    const base = { callId: "s1", phone: AMINA };
+    expect((await post("/sim/voice", { ...base, action: "start" })).json().expect).toBe("speech");
+    const heard = await app.inject({
+      method: "POST",
+      url: "/sim/voice/transcribe",
+      headers: { "content-type": "audio/webm" },
+      payload: Buffer.from("tura dari biyar zuwa musa"),
+    });
+    const { text } = heard.json() as { text: string };
+    const confirm = (await post("/sim/voice", { ...base, action: "say", value: text })).json();
+    expect(confirm).toMatchObject({ expect: "pin" });
+    expect(confirm.say).toContain("naira dari biyar zuwa Musa");
+    expect((await post("/sim/voice", { ...base, action: "pin", value: "4826" })).json().expect).toBe("end");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(sent).toEqual(["musa@example.com"]);
+    await app.close();
+  });
+
+  it("hangs up cleanly and escapes spoken text", async () => {
+    const { voiceXml } = await import("../src/voice/routes.js");
+    expect(voiceXml({ say: "a < b & c", expect: "end" })).toContain("<Say>a &lt; b &amp; c</Say>");
+    const { app, post } = await build();
+    await post("/voice", { sessionId: "at2", isActive: "1", callerNumber: AMINA });
+    expect((await post("/voice", { sessionId: "at2", isActive: "0", callerNumber: AMINA })).body).toBe("");
+    expect((await post("/voice", { sessionId: "at3", isActive: "1", callerNumber: "+2348039999999" })).body).not.toContain("<Record");
+    await app.close();
+  });
+});
