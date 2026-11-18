@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { join } from "node:path";
 import Fastify, { LogController } from "fastify";
 import formbody from "@fastify/formbody";
+import { createActions } from "./actions.js";
 import { config } from "./config.js";
 import { Store } from "./db.js";
 import { describeWallet, getBalanceSats } from "./lightning/nwc.js";
@@ -10,6 +11,9 @@ import { getRate } from "./rates.js";
 import { createSmsSender, type SmsSender } from "./sms.js";
 import { createUssdHandler, type Wallet } from "./ussd/handler.js";
 import { msg } from "./ussd/messages.js";
+import { createVoiceCalls } from "./voice/call.js";
+import { registerVoiceRoutes } from "./voice/routes.js";
+import { createTranscriber, type Transcriber } from "./voice/speech.js";
 import { providerFromConfig, type WalletProvider } from "./wallets/provider.js";
 import { registerLinkRoutes } from "./web/link.js";
 import { registerSimulatorRoutes } from "./web/sim.js";
@@ -20,6 +24,7 @@ export type ServerOptions = {
   provider?: WalletProvider | null;
   sms?: SmsSender;
   describeWallet?: typeof describeWallet;
+  transcribe?: Transcriber | null;
   serverSecret?: string;
   ussdWebhookToken?: string;
   simulator?: boolean;
@@ -55,10 +60,19 @@ export function buildServer(options: ServerOptions = {}) {
 
   const provider = options.provider === undefined ? providerFromConfig(config) : options.provider;
 
+  const wallet = options.wallet ?? liveWallet;
+  const transcribe = options.transcribe === undefined ? createTranscriber(config.speech) : (options.transcribe ?? undefined);
+  const calls = createVoiceCalls({
+    store,
+    actions: createActions({ store, sms, wallet, serverSecret, dailyLimitSats: config.dailyLimitSats }),
+    wallet,
+    ussdCode: config.ussdCode,
+  });
+
   const handleUssd = createUssdHandler({
     store,
     sms,
-    wallet: options.wallet ?? liveWallet,
+    wallet,
     ...(provider ? { provider } : {}),
     serverSecret,
     publicUrl: config.publicUrl,
@@ -96,6 +110,12 @@ export function buildServer(options: ServerOptions = {}) {
     }
   });
 
+  registerVoiceRoutes(app, {
+    calls,
+    ...(transcribe ? { transcribe } : {}),
+    authorised: (given) => !token || sameToken(given ?? "", token),
+  });
+
   registerLinkRoutes(app, {
     store,
     sms,
@@ -105,7 +125,13 @@ export function buildServer(options: ServerOptions = {}) {
   });
 
   if (simulator) {
-    registerSimulatorRoutes(app, { store, ussdCode: config.ussdCode, ussdPath: token ? `/ussd/${token}` : "/ussd" });
+    registerSimulatorRoutes(app, {
+      store,
+      calls,
+      ...(transcribe ? { transcribe } : {}),
+      ussdCode: config.ussdCode,
+      ussdPath: token ? `/ussd/${token}` : "/ussd",
+    });
   }
 
   app.addHook("onClose", async () => {

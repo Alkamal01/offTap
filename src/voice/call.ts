@@ -129,7 +129,9 @@ export function createVoiceCalls(deps: VoiceDeps) {
     calls.delete(callId);
   }
 
-  return { start, heard, digits, hangup };
+  const active = (callId: string) => calls.has(callId);
+
+  return { start, heard, digits, hangup, active };
 }
 
 export type VoiceCalls = ReturnType<typeof createVoiceCalls>;
