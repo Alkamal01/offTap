@@ -122,3 +122,43 @@ export function parseHausaNumber(tokens: string[]): number | undefined {
   }
   return total > 0 ? total : undefined;
 }
+
+const ONE_WORDS = ["", "daya", "biyu", "uku", "hudu", "biyar", "shida", "bakwai", "takwas", "tara"];
+const TEN_WORDS = ["", "goma", "ashirin", "talatin", "arba'in", "hamsin", "sittin", "saba'in", "tamanin", "casa'in"];
+
+function under100(n: number): string {
+  if (n < 10) return ONE_WORDS[n]!;
+  const tens = Math.floor(n / 10);
+  const ones = n % 10;
+  if (ones === 0) return TEN_WORDS[tens]!;
+  return tens === 1 ? `goma sha ${ONE_WORDS[ones]}` : `${TEN_WORDS[tens]} da ${ONE_WORDS[ones]}`;
+}
+
+function under1000(n: number): string {
+  if (n < 100) return under100(n);
+  const count = Math.floor(n / 100);
+  const rest = n % 100;
+  const head = count === 1 ? "dari" : `dari ${ONE_WORDS[count]}`;
+  return rest === 0 ? head : `${head} da ${under100(rest)}`;
+}
+
+function words(n: number): string {
+  const parts: string[] = [];
+  const millions = Math.floor(n / 1_000_000);
+  const thousands = Math.floor((n % 1_000_000) / 1000);
+  const rest = n % 1000;
+  if (millions > 0) parts.push(`miliyan ${under1000(millions)}`);
+  if (thousands > 0) parts.push(`dubu ${under1000(thousands)}`);
+  if (rest >= 100) {
+    parts.push(under1000(rest - (rest % 100)));
+    if (rest % 100 > 0) parts.push(under100(rest % 100));
+  } else if (rest > 0) parts.push(under100(rest));
+  return parts.join(" da ");
+}
+
+export function hausaNumber(value: number): string {
+  const n = Math.round(value);
+  if (n <= 0 || n >= 1_000_000_000) return String(n);
+  const spoken = words(n);
+  return parseHausaNumber(normaliseHausa(spoken)) === n ? spoken : String(n);
+}
