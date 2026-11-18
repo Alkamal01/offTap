@@ -169,6 +169,57 @@ describe("USSD: balance and receive", () => {
   });
 });
 
+describe("USSD: contacts", () => {
+  let t: ReturnType<typeof setup>;
+  beforeEach(async () => {
+    t = setup();
+    await t.link(AMINA, "1234", "amina@example.com");
+    await t.link(MUSA, "9999", "musa@example.com");
+  });
+
+  it("saves a contact and lists it", async () => {
+    expect(await t.dial(AMINA, "5")).toMatch(/^CON .*Ajiye/s);
+    expect(await t.dial(AMINA, "5*1")).toMatch(/^CON /);
+    expect(await t.dial(AMINA, "5*1*musa")).toMatch(/^CON .*Musa/);
+    expect(await t.dial(AMINA, "5*1*musa*08030000002")).toBe(`END An ajiye Musa: ${MUSA}`);
+    expect(await t.dial(AMINA, "5*2")).toContain(`Musa: ${MUSA}`);
+    expect(await t.dial(MUSA, "5*2")).toMatch(/^END Ba ka ajiye/);
+  });
+
+  it("rejects bad names and recipients", async () => {
+    expect(await t.dial(AMINA, "5*1*m")).toMatch(/^END Suna/);
+    expect(await t.dial(AMINA, "5*1*12345")).toMatch(/^END Suna/);
+    expect(await t.dial(AMINA, "5*1*musa*hello")).toMatch(/^END /);
+    expect(t.store.contacts(AMINA)).toHaveLength(0);
+  });
+
+  it("pays a contact by name or by its number in the list", async () => {
+    await t.dial(AMINA, "5*1*Musa*08030000002");
+    await t.dial(AMINA, "5*1*shago*shop@example.com");
+    expect(await t.dial(AMINA, "1")).toMatch(/^CON .*1\. Musa\n2\. Shago/s);
+    expect(await t.dial(AMINA, "1*MUSA*1000", "n")).toContain(`zuwa Musa (${MUSA})`);
+    await t.dial(AMINA, "1*MUSA*1000*1234", "n");
+    await t.dial(AMINA, "1*2*500", "i");
+    await t.dial(AMINA, "1*2*500*1234", "i");
+    expect(t.sent.map((s) => s.recipient)).toEqual(["musa@example.com", "shop@example.com"]);
+    expect(t.texts.some((m) => m.phone === MUSA)).toBe(true);
+  });
+
+  it("deletes a contact", async () => {
+    await t.dial(AMINA, "5*1*musa*08030000002");
+    expect(await t.dial(AMINA, "5*3")).toMatch(/^CON .*1\. Musa/s);
+    expect(await t.dial(AMINA, "5*3*1")).toBe("END An goge Musa.");
+    expect(await t.dial(AMINA, "1*musa")).toMatch(/^END /);
+  });
+
+  it("stops at the contact limit", async () => {
+    const letters = "abcdefghijklmnopqrstuvwxyz";
+    for (let i = 0; i < 20; i++) await t.dial(AMINA, `5*1*aboki ${letters[i]}*08030000002`);
+    expect(await t.dial(AMINA, "5*1*karshe*08030000002")).toMatch(/^END .*cika/);
+    expect(await t.dial(AMINA, "5*1*aboki a*shop@example.com")).toMatch(/^END An ajiye/);
+  });
+});
+
 describe("USSD: sign-up with a managed wallet", () => {
   const uri = (n: string) => `nostr+walletconnect://${n.repeat(64)}?relay=wss://relay.example.com&secret=${"b".repeat(64)}`;
   const provider = (): WalletProvider => {

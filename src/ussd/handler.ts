@@ -1,3 +1,4 @@
+import { displayName, normaliseContactName, pickContact } from "../contacts.js";
 import type { Store, User } from "../db.js";
 import { isLightningAddress } from "../lightning/lnaddress.js";
 import { PaymentError, type Quote, type Receipt } from "../payments.js";
@@ -65,7 +66,7 @@ export function createUssdHandler(deps: UssdDeps) {
     quotes.set(sessionId, { quote, at: now() });
   }
 
-  function resolveRecipient(input: string): Recipient | "invalid" | "unregistered" {
+  function resolveDirect(input: string): Recipient | "invalid" | "unregistered" {
     const value = input.trim();
     if (isLightningAddress(value)) return { address: value.toLowerCase(), label: value.toLowerCase() };
     const phone = normalisePhone(value);
@@ -74,6 +75,48 @@ export function createUssdHandler(deps: UssdDeps) {
     if (user?.managedSealed) return { label: phone, phone, managedSealed: user.managedSealed };
     if (!user?.lnAddress) return "unregistered";
     return { address: user.lnAddress, label: phone, phone };
+  }
+
+  function resolveRecipient(owner: string, input: string): Recipient | "invalid" | "unregistered" {
+    const direct = resolveDirect(input);
+    if (direct !== "invalid") return direct;
+    const contact = pickContact(store.contacts(owner), input);
+    if (!contact) return "invalid";
+    const saved = resolveDirect(contact.recipient);
+    if (typeof saved === "string") return saved;
+    return { ...saved, label: `${displayName(contact.name)} (${saved.label})` };
+  }
+
+  function contacts(user: User, parts: string[]): UssdResult {
+    const saved = store.contacts(user.phone);
+    const names = saved.map((c) => displayName(c.name));
+    if (parts.length === 1) return con(msg.contactsMenu);
+
+    if (parts[1] === "1") {
+      if (parts.length === 2) return con(msg.askContactName);
+      const name = normaliseContactName(parts[2] ?? "");
+      if (!name) return end(msg.invalidContactName);
+      if (parts.length === 3) return con(msg.askContactRecipient(displayName(name)));
+      if (parts.length > 4) return end(msg.invalidChoice);
+      const value = (parts[3] ?? "").trim();
+      const recipient = isLightningAddress(value) ? value.toLowerCase() : normalisePhone(value);
+      if (!recipient) return end(msg.invalidRecipient);
+      if (!store.saveContact(user.phone, name, recipient, now())) return end(msg.contactsFull);
+      return end(msg.contactSaved(displayName(name), recipient));
+    }
+
+    if (saved.length === 0) return end(msg.noContacts);
+    if (parts[1] === "2" && parts.length === 2) {
+      return end(msg.contactList(saved.map((c) => `${displayName(c.name)}: ${c.recipient}`)));
+    }
+    if (parts[1] === "3") {
+      if (parts.length === 2) return con(msg.chooseContactToDelete(names));
+      const chosen = /^\d{1,2}$/.test(parts[2] ?? "") ? saved[Number(parts[2]) - 1] : undefined;
+      if (!chosen || parts.length > 3) return end(msg.invalidChoice);
+      store.deleteContact(user.phone, chosen.name);
+      return end(msg.contactDeleted(displayName(chosen.name)));
+    }
+    return end(msg.invalidChoice);
   }
 
   async function unlock(user: User, pin: string): Promise<{ nwcUri: string } | UssdResult> {
@@ -117,9 +160,12 @@ export function createUssdHandler(deps: UssdDeps) {
   }
 
   async function send(user: User, sessionId: string, parts: string[]): Promise<UssdResult> {
-    if (parts.length === 1) return con(msg.askRecipient);
+    if (parts.length === 1) {
+      const names = store.contacts(user.phone).map((c) => displayName(c.name));
+      return con(names.length > 0 ? msg.askRecipientWithContacts(names.slice(0, 6)) : msg.askRecipient);
+    }
 
-    const recipient = resolveRecipient(parts[1] ?? "");
+    const recipient = resolveRecipient(user.phone, parts[1] ?? "");
     if (recipient === "invalid") return end(msg.invalidRecipient);
     if (recipient === "unregistered") return end(msg.recipientNotRegistered);
     if (parts.length === 2) return con(msg.askAmount);
@@ -235,6 +281,8 @@ export function createUssdHandler(deps: UssdDeps) {
         return end(user.lnAddress ? msg.receive(user.lnAddress) : msg.noReceive);
       case "4":
         return startLinking(phone);
+      case "5":
+        return contacts(user, parts);
       default:
         return end(msg.invalidChoice);
     }

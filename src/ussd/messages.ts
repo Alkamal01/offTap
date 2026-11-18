@@ -1,7 +1,7 @@
 const n = (value: number) => Math.round(value).toLocaleString("en-NG");
 
 export const msg = {
-  menu: "offTap\n1. Tura Kudi (Send)\n2. Duba Balance\n3. Karbi Kudi (Receive)\n4. Saita Wallet (Link)",
+  menu: "offTap\n1. Tura Kudi (Send)\n2. Duba Balance\n3. Karbi Kudi (Receive)\n4. Saita Wallet (Link)\n5. Lambobina (Contacts)",
   menuUnlinked: "Barka da zuwa offTap.\nBa a hada wallet dinka ba.\n1. Hada wallet (Link wallet)",
   menuNew: "Barka da zuwa offTap.\n1. Bude sabon wallet (New wallet)\n2. Hada naka wallet (Link own wallet)",
   choosePin: "Zabi PIN mai lambobi 4. Kar ka gaya wa kowa:",
@@ -13,6 +13,18 @@ export const msg = {
   walletFailed: "Ba a iya bude wallet ba yanzu. Sake gwadawa.",
   receivePhone: (phone: string) => `Don karbar kudi, a tura zuwa lambar wayarka:\n${phone}`,
   askRecipient: "Shigar da lambar waya ko Lightning address na mai karba:",
+  askRecipientWithContacts: (names: string[]) =>
+    `Shigar da lambar waya ko Lightning address, ko zabi:\n${names.map((name, i) => `${i + 1}. ${name}`).join("\n")}`,
+  contactsMenu: "Lambobina\n1. Ajiye sabuwar lamba\n2. Duba lambobina\n3. Goge lamba",
+  askContactName: "Shigar da sunan mutumin (misali Musa):",
+  askContactRecipient: (name: string) => `Shigar da lambar waya ko Lightning address na ${name}:`,
+  contactSaved: (name: string, recipient: string) => `An ajiye ${name}: ${recipient}`,
+  contactDeleted: (name: string) => `An goge ${name}.`,
+  chooseContactToDelete: (names: string[]) => `Wa za a goge?\n${names.map((name, i) => `${i + 1}. ${name}`).join("\n")}`,
+  contactList: (lines: string[]) => lines.join("\n"),
+  noContacts: "Ba ka ajiye kowa ba tukuna.",
+  contactsFull: "Lambobinka sun cika. Goge daya kafin ka kara.",
+  invalidContactName: "Suna bai dace ba. Yi amfani da haruffa kawai, 2 zuwa 15.",
   askAmount: "Shigar da adadin kudi a Naira:",
   confirm: (ngn: number, sats: number, recipient: string) =>
     `Za ka tura N${n(ngn)} (${n(sats)} sats) zuwa ${recipient}.\nShigar da PIN dinka don tabbatarwa:`,
