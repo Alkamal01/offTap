@@ -1,6 +1,19 @@
+import { readFile } from "node:fs/promises";
+import { extname } from "node:path";
+import { config } from "./config.js";
 import { describeWallet, getBalanceSats, isNwcUri } from "./lightning/nwc.js";
 import { quoteNgn, sendNgn } from "./payments.js";
 import { getRate, satsToNgn } from "./rates.js";
+import { parseIntent } from "./voice/intent.js";
+import { createTranscriber } from "./voice/speech.js";
+
+const AUDIO_TYPES: Record<string, string> = {
+  ".wav": "audio/wav",
+  ".mp3": "audio/mpeg",
+  ".m4a": "audio/mp4",
+  ".ogg": "audio/ogg",
+  ".webm": "audio/webm",
+};
 
 function nwcUri(): string {
   const uri = process.env.NWC_URI ?? "";
@@ -51,8 +64,24 @@ async function main(): Promise<void> {
       console.log(`Preimage: ${receipt.preimage}`);
       return;
     }
+    case "hear": {
+      const file = args[0];
+      const transcribe = createTranscriber(config.speech);
+      if (!file) throw new Error("Usage: hear <audio-file> [contact names...]");
+      if (!transcribe) throw new Error("Set GROQ_API_KEY or STT_URL first (see .env.example)");
+      const text = await transcribe(await readFile(file), AUDIO_TYPES[extname(file).toLowerCase()] ?? "audio/wav", args.slice(1));
+      console.log(`Heard: ${text}`);
+      console.log("Understood:", parseIntent(text));
+      return;
+    }
+    case "understand": {
+      console.log(parseIntent(args.join(" ")));
+      return;
+    }
     default:
-      console.log("Commands: rate | quote <ngn> | test-wallet [sats] | wallet | balance | pay <lightning-address> <ngn>");
+      console.log(
+        "Commands: rate | quote <ngn> | test-wallet [sats] | wallet | balance | pay <lightning-address> <ngn> | hear <audio-file> | understand <sentence>",
+      );
   }
 }
 
