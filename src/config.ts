@@ -51,6 +51,7 @@ export const config = {
     senderId: str("AT_SENDER_ID"),
   },
   walletProvider: (str("WALLET_PROVIDER") || "faucet") as "faucet" | "albyhub" | "none",
+  seedDemo: str("SEED_DEMO") !== "false" && (str("WALLET_PROVIDER") || "faucet") === "faucet" && !(atUsername && atApiKey),
   faucetSats: intFromEnv("FAUCET_SATS", 10_000),
   speech: {
     url: sttUrl,
