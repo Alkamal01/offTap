@@ -8,6 +8,7 @@ import { Store } from "./db.js";
 import { describeWallet, getBalanceSats } from "./lightning/nwc.js";
 import { PaymentError, quoteNgn, sendNgn } from "./payments.js";
 import { getRate } from "./rates.js";
+import { DEMO_ACCOUNTS, seedDemo } from "./seed.js";
 import { createSmsSender, type SmsSender } from "./sms.js";
 import { createUssdHandler, type Wallet } from "./ussd/handler.js";
 import { msg } from "./ussd/messages.js";
@@ -28,6 +29,7 @@ export type ServerOptions = {
   serverSecret?: string;
   ussdWebhookToken?: string;
   simulator?: boolean;
+  seed?: boolean;
   logger?: boolean;
 };
 
@@ -62,9 +64,10 @@ export function buildServer(options: ServerOptions = {}) {
 
   const wallet = options.wallet ?? liveWallet;
   const transcribe = options.transcribe === undefined ? createTranscriber(config.speech) : (options.transcribe ?? undefined);
+  const actions = createActions({ store, sms, wallet, serverSecret, dailyLimitSats: config.dailyLimitSats });
   const calls = createVoiceCalls({
     store,
-    actions: createActions({ store, sms, wallet, serverSecret, dailyLimitSats: config.dailyLimitSats }),
+    actions,
     wallet,
     ussdCode: config.ussdCode,
   });
@@ -131,7 +134,23 @@ export function buildServer(options: ServerOptions = {}) {
       ...(transcribe ? { transcribe } : {}),
       ussdCode: config.ussdCode,
       ussdPath: token ? `/ussd/${token}` : "/ussd",
+      demo: options.seed ? DEMO_ACCOUNTS : [],
     });
+  }
+
+  if (options.seed && provider) {
+    const seed = async (attempt: number): Promise<void> => {
+      try {
+        app.log.info({ result: await seedDemo({ store, provider, actions, wallet, serverSecret }) }, "demo data");
+      } catch (err) {
+        if (attempt < 5) {
+          setTimeout(() => void seed(attempt + 1), 15_000).unref();
+          return;
+        }
+        app.log.warn({ err: (err as Error).message }, "could not create demo data, sign up from the simulator instead");
+      }
+    };
+    app.addHook("onReady", async () => void seed(1));
   }
 
   app.addHook("onClose", async () => {
@@ -142,7 +161,7 @@ export function buildServer(options: ServerOptions = {}) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  buildServer()
+  buildServer({ seed: config.seedDemo })
     .listen({ port: config.port, host: "0.0.0.0" })
     .catch((err) => {
       console.error(err);

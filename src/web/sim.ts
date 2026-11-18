@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { Store } from "../db.js";
 import { normalisePhone } from "../phone.js";
+import type { DemoAccount } from "../seed.js";
 import type { VoiceCalls, VoiceStep } from "../voice/call.js";
 import type { Transcriber } from "../voice/speech.js";
 import { escapeHtml, page } from "./html.js";
@@ -12,15 +13,30 @@ const CSS = `
 .row input { flex:1; }
 .row button { width:auto; margin:0; padding:12px 18px; }
 ul { list-style:none; padding:0; margin:8px 0 0; }
+.pick { width:auto; margin:0 8px 0 0; padding:4px 12px; font-size:.9rem; }
 .said { margin-top:10px; font-size:.9rem; color:var(--muted); min-height:1.2em; }
 li { border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-bottom:8px; background:var(--card); font-size:.92rem; }
 `;
 
-function simulator(ussdCode: string, ussdPath: string, canListen: boolean): string {
+function demoPanel(demo: DemoAccount[]): string {
+  if (demo.length === 0) return "";
+  const rows = demo
+    .map(
+      (a) =>
+        `<li><button type="button" class="pick" data-phone="${escapeHtml(a.phone)}">${escapeHtml(a.name)}</button> ${escapeHtml(a.phone)} &middot; PIN <strong>${escapeHtml(a.pin)}</strong></li>`,
+    )
+    .join("");
+  return `<h1 style="margin-top:20px;font-size:1.15rem">Demo traders</h1>
+<p class="muted">Ready-made wallets with test sats. They have each other saved as contacts. Pick one, or type any other number to sign up from scratch.</p>
+<ul id="demo">${rows}</ul>`;
+}
+
+function simulator(ussdCode: string, ussdPath: string, canListen: boolean, demo: DemoAccount[]): string {
   return page(
     "Simulator",
     `<h1>Phone simulator</h1>
 <p class="muted">Dials ${escapeHtml(ussdCode)} against this server the way Africa's Talking would. Development only.</p>
+${demoPanel(demo)}
 <label for="phone">Phone number</label>
 <input id="phone" value="+2348030000001" inputmode="tel">
 <div class="phone">
@@ -128,6 +144,15 @@ if ($("mic")) {
   $("mic").addEventListener("pointerup", finish);
   $("mic").addEventListener("pointerleave", finish);
 }
+document.querySelectorAll(".pick").forEach((b) => b.addEventListener("click", () => {
+  $("phone").value = b.dataset.phone;
+  session = null; call = null;
+  $("screen").textContent = "Press Dial to start.";
+  $("vscreen").textContent = "Press Call to start.";
+  $("go").textContent = "Dial"; $("vgo").textContent = "Call";
+  $("input").disabled = true; $("vinput").disabled = true;
+  refreshSms();
+}));
 refreshSms();
 </script>`,
     CSS,
@@ -140,11 +165,12 @@ export type SimulatorDeps = {
   transcribe?: Transcriber;
   ussdCode: string;
   ussdPath: string;
+  demo?: DemoAccount[];
 };
 
 export function registerSimulatorRoutes(app: FastifyInstance, deps: SimulatorDeps): void {
   app.get("/sim", async (_req, reply) =>
-    reply.type("text/html").send(simulator(deps.ussdCode, deps.ussdPath, Boolean(deps.transcribe))),
+    reply.type("text/html").send(simulator(deps.ussdCode, deps.ussdPath, Boolean(deps.transcribe), deps.demo ?? [])),
   );
 
   app.get<{ Querystring: { phone?: string } }>("/sim/sms", async (req, reply) => {
