@@ -39,7 +39,7 @@ Both use the same menu, the same phone number and the same PIN flow. A trader ca
 flowchart LR
     phone[Trader's phone] -->|USSD / voice call| at[Africa's Talking]
     at -->|webhook| api[offTap server]
-    api -->|recording| stt[Whisper speech-to-text]
+    api -->|recording| stt[Whisper on Groq or self-hosted]
     api -->|BTC/NGN rate| oracle[Yadio / CoinGecko]
     api -->|LNURL-pay| recipient[Recipient's Lightning Address]
     api -->|NIP-47 pay_invoice| relay[Nostr relay]
@@ -61,7 +61,7 @@ flowchart LR
 | Contacts | Saved names per phone | [src/contacts.ts](src/contacts.ts) |
 | Voice understanding | Hausa number words and send/balance intents, no model needed | [src/voice/numbers.ts](src/voice/numbers.ts), [src/voice/intent.ts](src/voice/intent.ts) |
 | Voice calls | Africa's Talking Voice, read-back, keypad PIN | [src/voice/call.ts](src/voice/call.ts), [src/voice/routes.ts](src/voice/routes.ts) |
-| Speech-to-text | Any Whisper-compatible server (open-source [Speaches](https://github.com/speaches-ai/speaches) in the compose file) | [src/voice/speech.ts](src/voice/speech.ts) |
+| Speech-to-text | Whisper large v3 on Groq, or any self-hosted Whisper-compatible server | [src/voice/speech.ts](src/voice/speech.ts) |
 | Shared rules | PIN check, limits and payment, used by both USSD and voice | [src/actions.ts](src/actions.ts) |
 
 The server is the only component offTap runs. The wallet stays with the merchant, and the server reaches it through a Nostr relay using the connection the merchant issued.
@@ -132,13 +132,24 @@ Copy `.env.example` to `.env`, set `AT_USERNAME` and `AT_API_KEY`, and point you
 
 ### With speech
 
-The simulator takes typed sentences by default. To speak instead, start the open-source speech server and point offTap at it:
+The simulator takes typed sentences by default. To speak instead, give offTap a speech-to-text service. Two options:
+
+- **Groq (quickest).** Set `GROQ_API_KEY` in `.env`. Recordings are transcribed by Whisper large v3 on Groq.
+- **Self-hosted.** Run the open-source speech server from the compose file, so audio never leaves your machine:
+
+  ```bash
+  STT_URL=http://speech:8000/v1/audio/transcriptions docker compose --profile voice up --build
+  ```
+
+Either way the recogniser is told to expect Hausa, given the number words and the caller's saved contact names as hints, and its output still has to pass the same parser, contact match, read-back and PIN. With Groq, the recording and those names are sent to Groq; nothing else is.
+
+To check a recording from the command line:
 
 ```bash
-STT_URL=http://speech:8000/v1/audio/transcriptions docker compose --profile voice up --build
+npm run cli -- hear recording.m4a Musa Aisha
 ```
 
-The first start downloads a Whisper model. `STT_URL` can be any server that speaks the OpenAI transcription API, and `STT_MODEL` picks the model, so a Hausa fine-tune can be swapped in. For phone calls, point your Africa's Talking voice number's callback URL at `https://<your-host>/voice`.
+For phone calls, point your Africa's Talking voice number's callback URL at `https://<your-host>/voice`.
 
 ### With real sats
 

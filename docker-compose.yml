@@ -19,9 +19,10 @@ services:
       FAUCET_SATS: ${FAUCET_SATS:-10000}
       ALBY_HUB_URL: ${ALBY_HUB_URL:-http://wallet:8080/api}
       ALBY_HUB_TOKEN: ${ALBY_HUB_TOKEN:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
       STT_URL: ${STT_URL:-}
       STT_API_KEY: ${STT_API_KEY:-}
-      STT_MODEL: ${STT_MODEL:-Systran/faster-whisper-small}
+      STT_MODEL: ${STT_MODEL:-}
     volumes:
       - offtap-data:/data
     restart: unless-stopped
