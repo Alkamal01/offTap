@@ -48,6 +48,11 @@ export const config = {
   },
   walletProvider: (str("WALLET_PROVIDER") || "faucet") as "faucet" | "albyhub" | "none",
   faucetSats: intFromEnv("FAUCET_SATS", 10_000),
+  speech: {
+    url: str("STT_URL"),
+    apiKey: str("STT_API_KEY"),
+    model: str("STT_MODEL") || "Systran/faster-whisper-small",
+  },
   albyHub: { url: str("ALBY_HUB_URL"), token: str("ALBY_HUB_TOKEN") },
   get serverSecret(): string {
     return (cachedSecret ??= loadServerSecret());
