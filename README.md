@@ -95,7 +95,7 @@ What this does not protect against: a 4-digit PIN travels through the mobile net
 | Sign-up over USSD with an easy wallet (test sats or Alby Hub sub-wallets) | Done |
 | Wallet linking with a one-time code and PIN | Done |
 | SMS receipts through Africa's Talking | Done, not yet tested against a live account |
-| Built-in phone simulator | Done |
+| Built-in phone simulator with demo traders and seed data | Done |
 | Saved contacts, pay by name | Done |
 | Hausa voice: number words, intent, call flow, read-back, keypad PIN | Done, tested with typed speech and live test payments |
 | Speech-to-text on real recordings | Wired to a Whisper-compatible server, not yet tested with Hausa audio |
@@ -108,14 +108,22 @@ What this does not protect against: a 4-digit PIN travels through the mobile net
 docker compose up --build
 ```
 
-Then open http://localhost:3000/sim. It is a phone simulator that talks to the server the same way Africa's Talking does, with an SMS inbox underneath. Out of the box, new wallets are test wallets holding 10,000 test sats with no real value, so the whole flow can be tried for free.
+Then open http://localhost:3000/sim. It is a phone simulator that talks to the server the same way Africa's Talking does, with an SMS inbox underneath.
 
-1. Press **Dial**, choose `1`, and enter a PIN twice. You now have a wallet.
-2. Change the phone number at the top to a second number and do the same.
-3. Switch back to the first number. Dial, choose `1` to send, enter the second number, an amount in naira, then your PIN.
-4. Both numbers get an SMS, and `2` shows the new balance.
+On first start the server creates three demo traders, each with a test wallet holding 10,000 test sats (no real value), with each other saved as contacts and two payments already made between them. This takes about half a minute and needs internet, since the wallets and payments are real ones on a test network.
 
-To try voice, save a contact first (dial, `5`, `1`, a name, then the second number). Under **Voice call** press **Call**, type `tura dari biyar zuwa <name>`, and enter your PIN when asked.
+| Trader | Phone | PIN |
+|---|---|---|
+| Amina | +2348030000001 | 4826 |
+| Musa | +2348030000002 | 7391 |
+| Aisha | +2348030000003 | 5802 |
+
+1. **Pay over USSD.** Pick Amina, press **Dial**, choose `1` to send, choose Musa from the list, enter an amount in naira, then the PIN. Both phones get an SMS.
+2. **Check a balance.** Pick Musa, dial, choose `2`, enter his PIN.
+3. **Pay by voice.** Under **Voice call** press **Call**, type `tura dari biyar zuwa Aisha`, and enter the PIN when asked.
+4. **Sign up from scratch.** Type any other number, dial, choose `1`, and pick a PIN.
+
+Set `SEED_DEMO=false` to start empty. Demo data is never created when Africa's Talking keys are set or when wallets hold real sats.
 
 To link your own wallet instead, choose `2` on the first screen and follow the link code to http://localhost:3000/link.
 
