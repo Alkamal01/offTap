@@ -19,6 +19,9 @@ services:
       FAUCET_SATS: ${FAUCET_SATS:-10000}
       ALBY_HUB_URL: ${ALBY_HUB_URL:-http://wallet:8080/api}
       ALBY_HUB_TOKEN: ${ALBY_HUB_TOKEN:-}
+      STT_URL: ${STT_URL:-}
+      STT_API_KEY: ${STT_API_KEY:-}
+      STT_MODEL: ${STT_MODEL:-Systran/faster-whisper-small}
     volumes:
       - offtap-data:/data
     restart: unless-stopped
@@ -34,6 +37,16 @@ services:
       - wallet-data:/data
     restart: unless-stopped
 
+  speech:
+    image: ghcr.io/speaches-ai/speaches:latest-cpu
+    profiles: ["voice"]
+    environment:
+      PRELOAD_MODELS: '["${STT_MODEL:-Systran/faster-whisper-small}"]'
+    volumes:
+      - speech-models:/home/ubuntu/.cache/huggingface/hub
+    restart: unless-stopped
+
 volumes:
+  speech-models:
   offtap-data:
   wallet-data:

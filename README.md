@@ -15,6 +15,14 @@ A trader dials the USSD code and gets a wallet in under a minute. No smartphone,
 3. offTap shows the amount in sats at the live rate. The trader confirms with their PIN.
 4. The payment settles over Lightning and both sides get an SMS.
 
+### By voice
+
+Typing on a keypad is slow and not everyone reads. A trader can save the people they pay under a name (**Lambobina** in the menu), then call in and say it:
+
+> "Tura dubu biyar zuwa Musa"
+
+offTap reads it back in Hausa ("Za ka tura naira dubu biyar zuwa Musa"), and the trader approves by entering their PIN on the keypad. The PIN is never spoken. Voice only pays saved contacts, and a name that does not clearly match one is refused rather than guessed.
+
 ### Two kinds of wallet
 
 | | Easy wallet | Own wallet |
@@ -31,6 +39,7 @@ Both use the same menu, the same phone number and the same PIN flow. A trader ca
 flowchart LR
     phone[Trader's phone] -->|USSD / voice call| at[Africa's Talking]
     at -->|webhook| api[offTap server]
+    api -->|recording| stt[Whisper speech-to-text]
     api -->|BTC/NGN rate| oracle[Yadio / CoinGecko]
     api -->|LNURL-pay| recipient[Recipient's Lightning Address]
     api -->|NIP-47 pay_invoice| relay[Nostr relay]
@@ -49,7 +58,11 @@ flowchart LR
 | Wallet access | Nostr Wallet Connect (NIP-47) via `@getalby/sdk` | [src/lightning/nwc.ts](src/lightning/nwc.ts) |
 | Recipient lookup | Lightning Address (LNURL-pay) | [src/lightning/lnaddress.ts](src/lightning/lnaddress.ts) |
 | Rate oracle | Yadio, CoinGecko fallback, 60s cache | [src/rates.ts](src/rates.ts) |
-| Voice | Hausa speech recognition and intent parsing | planned |
+| Contacts | Saved names per phone | [src/contacts.ts](src/contacts.ts) |
+| Voice understanding | Hausa number words and send/balance intents, no model needed | [src/voice/numbers.ts](src/voice/numbers.ts), [src/voice/intent.ts](src/voice/intent.ts) |
+| Voice calls | Africa's Talking Voice, read-back, keypad PIN | [src/voice/call.ts](src/voice/call.ts), [src/voice/routes.ts](src/voice/routes.ts) |
+| Speech-to-text | Any Whisper-compatible server (open-source [Speaches](https://github.com/speaches-ai/speaches) in the compose file) | [src/voice/speech.ts](src/voice/speech.ts) |
+| Shared rules | PIN check, limits and payment, used by both USSD and voice | [src/actions.ts](src/actions.ts) |
 
 The server is the only component offTap runs. The wallet stays with the merchant, and the server reaches it through a Nostr relay using the connection the merchant issued.
 
@@ -65,6 +78,7 @@ In both modes:
 - **Connections are encrypted at rest** with AES-256-GCM. For own wallets the key is derived from the PIN and a server secret (scrypt), and the connection is decrypted only for the moment of a payment.
 - **Three wrong PINs lock the account for an hour.** Obvious PINs such as 1234 or 1111 are refused.
 - **Server-side limits.** A cap per payment and per 24 hours applies on top of any wallet budget.
+- **Voice follows the same rules.** A call goes through the same PIN check, lockout and limits as USSD. The PIN is typed, not spoken, and only saved contacts can be paid.
 - **The amount is fixed at confirmation.** The trader sees naira and sats before entering the PIN, and the invoice is checked against that amount.
 - **Nothing sensitive is logged.** Request bodies, phone numbers and PINs are kept out of logs.
 
@@ -82,7 +96,11 @@ What this does not protect against: a 4-digit PIN travels through the mobile net
 | Wallet linking with a one-time code and PIN | Done |
 | SMS receipts through Africa's Talking | Done, not yet tested against a live account |
 | Built-in phone simulator | Done |
-| Hausa voice commands | Planned |
+| Saved contacts, pay by name | Done |
+| Hausa voice: number words, intent, call flow, read-back, keypad PIN | Done, tested with typed speech and live test payments |
+| Speech-to-text on real recordings | Wired to a Whisper-compatible server, not yet tested with Hausa audio |
+| Africa's Talking voice webhook | Written from their documented format, not yet tested on a live number |
+| Hausa text-to-speech on calls | Not yet: prompts are sent as text for Africa's Talking to speak |
 
 ## Run it
 
@@ -97,6 +115,8 @@ Then open http://localhost:3000/sim. It is a phone simulator that talks to the s
 3. Switch back to the first number. Dial, choose `1` to send, enter the second number, an amount in naira, then your PIN.
 4. Both numbers get an SMS, and `2` shows the new balance.
 
+To try voice, save a contact first (dial, `5`, `1`, a name, then the second number). Under **Voice call** press **Call**, type `tura dari biyar zuwa <name>`, and enter your PIN when asked.
+
 To link your own wallet instead, choose `2` on the first screen and follow the link code to http://localhost:3000/link.
 
 Without Docker (Node 22.13+):
@@ -109,6 +129,16 @@ npm run dev
 ### With Africa's Talking
 
 Copy `.env.example` to `.env`, set `AT_USERNAME` and `AT_API_KEY`, and point your USSD channel's callback URL at `https://<your-host>/ussd`. Setting these turns the simulator off and sends real SMS.
+
+### With speech
+
+The simulator takes typed sentences by default. To speak instead, start the open-source speech server and point offTap at it:
+
+```bash
+STT_URL=http://speech:8000/v1/audio/transcriptions docker compose --profile voice up --build
+```
+
+The first start downloads a Whisper model. `STT_URL` can be any server that speaks the OpenAI transcription API, and `STT_MODEL` picks the model, so a Hausa fine-tune can be swapped in. For phone calls, point your Africa's Talking voice number's callback URL at `https://<your-host>/voice`.
 
 ### With real sats
 
