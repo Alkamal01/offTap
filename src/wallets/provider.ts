@@ -15,13 +15,22 @@ export function faucetProvider(sats: number): WalletProvider {
   return {
     name: "faucet",
     async create() {
-      const res = await fetch(`https://faucet.nwc.dev?balance=${sats}`, {
-        method: "POST",
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      });
-      if (!res.ok) throw new Error(`Faucet returned HTTP ${res.status}`);
-      const uri = (await res.text()).trim();
-      return checked(uri, new URL(uri).searchParams.get("lud16"));
+      for (let attempt = 1; ; attempt++) {
+        try {
+          const res = await fetch(`https://faucet.nwc.dev?balance=${sats}`, {
+            method: "POST",
+            signal: AbortSignal.timeout(TIMEOUT_MS),
+          });
+          if (res.ok) {
+            const uri = (await res.text()).trim();
+            return checked(uri, new URL(uri).searchParams.get("lud16"));
+          }
+          if (res.status < 500 || attempt >= 3) throw new Error(`Faucet returned HTTP ${res.status}`);
+        } catch (err) {
+          if (attempt >= 3 || (err as Error).message.startsWith("Faucet returned HTTP 4")) throw err;
+        }
+        await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+      }
     },
   };
 }
