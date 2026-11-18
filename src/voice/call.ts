@@ -131,7 +131,12 @@ export function createVoiceCalls(deps: VoiceDeps) {
 
   const active = (callId: string) => calls.has(callId);
 
-  return { start, heard, digits, hangup, active };
+  function names(phoneNumber: string): string[] {
+    const phone = normalisePhone(phoneNumber);
+    return phone ? store.contacts(phone).map((c) => displayName(c.name)) : [];
+  }
+
+  return { start, heard, digits, hangup, active, names };
 }
 
 export type VoiceCalls = ReturnType<typeof createVoiceCalls>;

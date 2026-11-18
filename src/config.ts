@@ -29,6 +29,10 @@ function loadServerSecret(): string {
   return secret;
 }
 
+const groqKey = str("GROQ_API_KEY");
+const sttUrl = str("STT_URL") || (groqKey ? "https://api.groq.com/openai/v1/audio/transcriptions" : "");
+const viaGroq = sttUrl.includes("api.groq.com");
+
 const atUsername = str("AT_USERNAME");
 const atApiKey = str("AT_API_KEY");
 
@@ -49,9 +53,9 @@ export const config = {
   walletProvider: (str("WALLET_PROVIDER") || "faucet") as "faucet" | "albyhub" | "none",
   faucetSats: intFromEnv("FAUCET_SATS", 10_000),
   speech: {
-    url: str("STT_URL"),
-    apiKey: str("STT_API_KEY"),
-    model: str("STT_MODEL") || "Systran/faster-whisper-small",
+    url: sttUrl,
+    apiKey: str("STT_API_KEY") || (viaGroq ? groqKey : ""),
+    model: str("STT_MODEL") || (viaGroq ? "whisper-large-v3" : "Systran/faster-whisper-small"),
   },
   albyHub: { url: str("ALBY_HUB_URL"), token: str("ALBY_HUB_TOKEN") },
   get serverSecret(): string {

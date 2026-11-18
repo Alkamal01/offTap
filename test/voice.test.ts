@@ -322,3 +322,29 @@ describe("voice over HTTP", () => {
     await app.close();
   });
 });
+
+describe("speech-to-text request", () => {
+  it("asks for Hausa and hints the number words and contact names", async () => {
+    const { createTranscriber, speechPrompt } = await import("../src/voice/speech.js");
+    expect(createTranscriber({ url: "", apiKey: "", model: "m" })).toBeUndefined();
+    expect(speechPrompt(["Musa", "Baban Amina"])).toMatch(/dubu.*Sunaye: Musa, Baban Amina\./);
+
+    const original = globalThis.fetch;
+    let seen: { url: string; auth: string | null; form: FormData } | undefined;
+    globalThis.fetch = (async (url: string, init: RequestInit) => {
+      seen = { url, auth: new Headers(init.headers).get("authorization"), form: init.body as FormData };
+      return new Response(JSON.stringify({ text: " Tura dubu biyar zuwa Musa. " }));
+    }) as typeof fetch;
+    try {
+      const transcribe = createTranscriber({ url: "https://stt.test/v1/audio/transcriptions", apiKey: "k", model: "whisper-large-v3" })!;
+      expect(await transcribe(new Uint8Array([1, 2, 3]), "audio/webm;codecs=opus", ["Musa"])).toBe("Tura dubu biyar zuwa Musa.");
+    } finally {
+      globalThis.fetch = original;
+    }
+    expect(seen?.auth).toBe("Bearer k");
+    expect(seen?.form.get("language")).toBe("ha");
+    expect(seen?.form.get("model")).toBe("whisper-large-v3");
+    expect(String(seen?.form.get("prompt"))).toContain("Musa");
+    expect((seen?.form.get("file") as File).name).toBe("speech.webm");
+  });
+});

@@ -56,7 +56,7 @@ export function registerVoiceRoutes(app: FastifyInstance, deps: VoiceRouteDeps):
       else if (body.dtmfDigits) step = await calls.digits(callId, body.dtmfDigits);
       else if (body.recordingUrl && deps.transcribe) {
         const recording = await download(body.recordingUrl);
-        step = await calls.heard(callId, await deps.transcribe(recording.audio, recording.contentType));
+        step = await calls.heard(callId, await deps.transcribe(recording.audio, recording.contentType, calls.names(caller ?? "")));
       } else step = await calls.heard(callId, "");
     } catch (err) {
       req.log.error({ err: (err as Error).message }, "voice request failed");

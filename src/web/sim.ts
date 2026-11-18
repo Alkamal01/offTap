@@ -114,7 +114,7 @@ if ($("mic")) {
       const blob = new Blob(chunks, { type: recorder.mimeType });
       recorder = null;
       $("said").textContent = "Listening...";
-      const res = await fetch("/sim/voice/transcribe", { method: "POST", headers: { "content-type": blob.type }, body: blob });
+      const res = await fetch("/sim/voice/transcribe?phone=" + encodeURIComponent($("phone").value), { method: "POST", headers: { "content-type": blob.type }, body: blob });
       if (!res.ok) { $("said").textContent = "Could not transcribe."; return; }
       const { text } = await res.json();
       $("said").textContent = "Heard: " + text;
@@ -168,9 +168,9 @@ export function registerSimulatorRoutes(app: FastifyInstance, deps: SimulatorDep
   if (deps.transcribe) {
     const transcribe = deps.transcribe;
     app.addContentTypeParser(/^audio\//, { parseAs: "buffer", bodyLimit: 5 * 1024 * 1024 }, (_req, body, done) => done(null, body));
-    app.post<{ Body: Buffer }>("/sim/voice/transcribe", async (req, reply) => {
+    app.post<{ Body: Buffer; Querystring: { phone?: string } }>("/sim/voice/transcribe", async (req, reply) => {
       try {
-        return { text: await transcribe(req.body, req.headers["content-type"] ?? "audio/webm") };
+        return { text: await transcribe(req.body, req.headers["content-type"] ?? "audio/webm", deps.calls.names(req.query.phone ?? "")) };
       } catch (err) {
         req.log.error({ err: (err as Error).message }, "transcription failed");
         return reply.code(502).send({ error: "TRANSCRIPTION_FAILED" });
