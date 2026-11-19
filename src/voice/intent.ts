@@ -42,6 +42,12 @@ function amountSpan(tokens: string[]): { from: number; to: number } | undefined 
   return { from, to };
 }
 
+export function spokenAmount(text: string): number | undefined {
+  const tokens = normaliseHausa(text).map((token) => token.replace(/^n(?=\d)/, ""));
+  const span = amountSpan(tokens);
+  return span ? parseHausaNumber(tokens.slice(span.from, span.to)) : undefined;
+}
+
 export function parseIntent(text: string): Intent {
   const tokens = normaliseHausa(text).map((token) => token.replace(/^n(?=\d)/, ""));
   if (tokens.length === 0) return { kind: "unknown" };

@@ -350,3 +350,85 @@ describe("speech-to-text request", () => {
     expect((seen?.form.get("file") as File).name).toBe("speech.webm");
   });
 });
+
+describe("AI understanding", () => {
+  const SECRET = "test-secret";
+  const NWC = `nostr+walletconnect://${"a".repeat(64)}?relay=wss://relay.example.com&secret=${"b".repeat(64)}`;
+  const AMINA = "+2348030000001";
+  const MUSA = "+2348030000002";
+
+  const build = async (understand: (text: string, names: string[]) => Promise<ReturnType<typeof parseIntent>>) => {
+    const store = new Store(":memory:");
+    const sent: number[] = [];
+    const asked: { text: string; names: string[] }[] = [];
+    const wallet: Wallet = {
+      quote: async (amountNgn) => ({ amountNgn, sats: amountNgn, ngnPerBtc: 1e8, rateSource: "test" }),
+      send: async ({ recipient, quote }) => {
+        sent.push(quote.sats);
+        return { ...quote, recipient, paymentHash: "h", preimage: "p", feesPaidSats: 0 };
+      },
+      balanceSats: async () => 1,
+      ngnPerBtc: async () => 1e8,
+    };
+    const actions = createActions({ store, sms: async () => {}, wallet, serverSecret: SECRET, dailyLimitSats: 100_000 });
+    const calls = createVoiceCalls({
+      store,
+      actions,
+      wallet,
+      ussdCode: "*384*1#",
+      understand: async (text, names) => {
+        asked.push({ text, names });
+        return understand(text, names);
+      },
+    });
+    store.saveUser(AMINA, await seal(NWC, "4826", SECRET), null);
+    store.saveUser(MUSA, await seal(NWC, "7391", SECRET), "musa@example.com");
+    store.saveContact(AMINA, "musa", MUSA);
+    calls.start("c", AMINA);
+    return { calls, sent, asked };
+  };
+
+  it("is not consulted when the sentence is already clear", async () => {
+    const { calls, asked } = await build(async () => ({ kind: "unknown" }));
+    expect((await calls.heard("c", "tura dubu biyar zuwa musa")).expect).toBe("pin");
+    expect(asked).toHaveLength(0);
+  });
+
+  it("rescues a sentence the rules cannot read, and still needs read-back and PIN", async () => {
+    const { calls, sent, asked } = await build(async () => ({ kind: "send", amountNgn: 2000, recipient: "Musa" }));
+    const step = await calls.heard("c", "don Allah ina so Moosa ya samu kudi dubu biyu yanzu");
+    expect(asked[0]?.names).toEqual(["Musa"]);
+    expect(step.expect).toBe("pin");
+    expect(step.say).toContain("naira dubu biyu zuwa Musa");
+    expect(sent).toHaveLength(0);
+    await (await calls.digits("c", "4826")).background;
+    expect(sent).toEqual([2000]);
+  });
+
+  it("keeps the amount the rules read over the model's", async () => {
+    const { calls } = await build(async () => ({ kind: "send", amountNgn: 50_000, recipient: "Musa" }));
+    const step = await calls.heard("c", "ka ba Moosa naira dubu biyar");
+    expect(step.say).toContain("naira dubu biyar zuwa Musa");
+  });
+
+  it("cannot make offTap pay someone who is not a saved contact", async () => {
+    const { calls, sent } = await build(async () => ({ kind: "send", amountNgn: 2000, recipient: "Sani" }));
+    expect((await calls.heard("c", "wani abu daban")).expect).toBe("speech");
+    expect(sent).toHaveLength(0);
+  });
+
+  it("falls back to the rules when the model is down", async () => {
+    const { calls } = await build(async () => Promise.reject(new Error("down")));
+    expect((await calls.heard("c", "tura dubu daya zuwa mussa da")).expect).toBe("pin");
+  });
+
+  it("reads the model's reply strictly", async () => {
+    const { intentFromReply } = await import("../src/voice/understand.js");
+    expect(intentFromReply('{"action":"send","amount_naira":5000,"recipient":"Musa"}')).toEqual({ kind: "send", amountNgn: 5000, recipient: "Musa" });
+    expect(intentFromReply('Sure! {"action":"balance","amount_naira":null,"recipient":null}')).toEqual({ kind: "balance" });
+    expect(intentFromReply('{"action":"send","amount_naira":"lots","recipient":null}')).toEqual({ kind: "send" });
+    expect(intentFromReply('{"action":"send","amount_naira":-5,"recipient":""}')).toEqual({ kind: "send" });
+    expect(intentFromReply('{"action":"transfer_everything"}')).toEqual({ kind: "unknown" });
+    expect(intentFromReply("not json")).toEqual({ kind: "unknown" });
+  });
+});

@@ -17,6 +17,7 @@ import { msg } from "./ussd/messages.js";
 import { createVoiceCalls } from "./voice/call.js";
 import { registerVoiceRoutes } from "./voice/routes.js";
 import { createTranscriber, type Transcriber } from "./voice/speech.js";
+import { createUnderstander, type Understander } from "./voice/understand.js";
 import { providerFromConfig, type WalletProvider } from "./wallets/provider.js";
 import { registerLinkRoutes } from "./web/link.js";
 import { registerSimulatorRoutes } from "./web/sim.js";
@@ -28,6 +29,7 @@ export type ServerOptions = {
   sms?: SmsSender;
   describeWallet?: typeof describeWallet;
   transcribe?: Transcriber | null;
+  understand?: Understander | null;
   invoices?: Pick<PayAddressDeps, "makeInvoice" | "invoiceSettled" | "watchEveryMs">;
   publicUrl?: string;
   serverSecret?: string;
@@ -72,11 +74,15 @@ export function buildServer(options: ServerOptions = {}) {
   const wallet = options.wallet ?? liveWallet;
   const transcribe = options.transcribe === undefined ? createTranscriber(config.speech) : (options.transcribe ?? undefined);
   const actions = createActions({ store, sms, wallet, serverSecret, dailyLimitSats: config.dailyLimitSats });
+  const understand =
+    options.understand === undefined ? createUnderstander(config.languageModel) : (options.understand ?? undefined);
   const calls = createVoiceCalls({
     store,
     actions,
     wallet,
     ussdCode: config.ussdCode,
+    ...(understand ? { understand } : {}),
+    onUnderstandError: (err) => app.log.warn({ err: err.message }, "language model failed, using the rule parser"),
   });
 
   const handleUssd = createUssdHandler({

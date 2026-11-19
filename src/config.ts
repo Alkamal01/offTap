@@ -37,6 +37,8 @@ const groqKey = str("GROQ_API_KEY");
 const sttUrl = str("STT_URL") || (groqKey ? "https://api.groq.com/openai/v1/audio/transcriptions" : "");
 const viaGroq = sttUrl.includes("api.groq.com");
 
+const llmUrl = str("LLM_URL") || (groqKey ? "https://api.groq.com/openai/v1/chat/completions" : "");
+
 const atUsername = str("AT_USERNAME");
 const atApiKey = str("AT_API_KEY");
 
@@ -66,6 +68,11 @@ export const config = {
     url: sttUrl,
     apiKey: str("STT_API_KEY") || (viaGroq ? groqKey : ""),
     model: str("STT_MODEL") || (viaGroq ? "whisper-large-v3" : "Systran/faster-whisper-small"),
+  },
+  languageModel: {
+    url: llmUrl,
+    apiKey: str("LLM_API_KEY") || (llmUrl.includes("api.groq.com") ? groqKey : ""),
+    model: str("LLM_MODEL") || "llama-3.3-70b-versatile",
   },
   albyHub: { url: str("ALBY_HUB_URL"), token: str("ALBY_HUB_TOKEN") },
   get serverSecret(): string {

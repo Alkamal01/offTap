@@ -1,12 +1,13 @@
 import type { Actions, Recipient, Wallet } from "../actions.js";
 import { displayName } from "../contacts.js";
-import type { Store } from "../db.js";
+import type { Contact, Store } from "../db.js";
 import { PaymentError, type Quote } from "../payments.js";
 import { normalisePhone } from "../phone.js";
-import { parseIntent } from "./intent.js";
+import { parseIntent, spokenAmount, type Intent } from "./intent.js";
 import { matchContact } from "./match.js";
 import { say } from "./messages.js";
 import { normaliseHausa, parseHausaNumber } from "./numbers.js";
+import type { Understander } from "./understand.js";
 
 export type VoiceStep = { say: string; expect: "speech" | "pin" | "end"; background?: Promise<void> };
 
@@ -15,6 +16,8 @@ export type VoiceDeps = {
   actions: Actions;
   wallet: Wallet;
   ussdCode: string;
+  understand?: Understander;
+  onUnderstandError?: (err: Error) => void;
   now?: () => number;
 };
 
@@ -41,6 +44,33 @@ export function createVoiceCalls(deps: VoiceDeps) {
     return { say: text, expect: "speech" };
   }
 
+  async function interpret(transcript: string, contacts: Contact[]): Promise<Intent> {
+    const byRules = parseIntent(transcript);
+    const clear =
+      byRules.kind === "balance" ||
+      (byRules.kind === "send" &&
+        byRules.amountNgn !== undefined &&
+        byRules.recipient !== undefined &&
+        matchContact(contacts, byRules.recipient) !== undefined);
+    if (clear || !deps.understand || transcript.trim() === "") return byRules;
+
+    let byModel: Intent;
+    try {
+      byModel = await deps.understand(transcript, contacts.map((c) => displayName(c.name)));
+    } catch (err) {
+      deps.onUnderstandError?.(err as Error);
+      return byRules;
+    }
+    if (byModel.kind !== "send") return byRules.kind === "unknown" ? byModel : byRules;
+    const amountNgn = spokenAmount(transcript) ?? byModel.amountNgn;
+    const recipient = byModel.recipient ?? (byRules.kind === "send" ? byRules.recipient : undefined);
+    return {
+      kind: "send",
+      ...(amountNgn !== undefined ? { amountNgn } : {}),
+      ...(recipient !== undefined ? { recipient } : {}),
+    };
+  }
+
   function start(callId: string, phoneNumber: string): VoiceStep {
     const cutoff = now() - CALL_MS;
     for (const [id, call] of calls) if (call.at < cutoff) calls.delete(id);
@@ -58,7 +88,7 @@ export function createVoiceCalls(deps: VoiceDeps) {
     if (call.pending) return { say: say.askPin, expect: "pin" };
 
     const contacts = store.contacts(call.phone);
-    const intent = parseIntent(transcript);
+    const intent = await interpret(transcript, contacts);
     let amountNgn = call.amountNgn;
     let spokenName: string | undefined;
 
