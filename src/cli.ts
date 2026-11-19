@@ -6,6 +6,7 @@ import { quoteNgn, sendNgn } from "./payments.js";
 import { getRate, satsToNgn } from "./rates.js";
 import { parseIntent } from "./voice/intent.js";
 import { createTranscriber } from "./voice/speech.js";
+import { createUnderstander } from "./voice/understand.js";
 
 const AUDIO_TYPES: Record<string, string> = {
   ".wav": "audio/wav",
@@ -75,7 +76,10 @@ async function main(): Promise<void> {
       return;
     }
     case "understand": {
-      console.log(parseIntent(args.join(" ")));
+      const sentence = args.join(" ");
+      console.log("Rules:", parseIntent(sentence));
+      const understand = createUnderstander(config.languageModel);
+      if (understand) console.log("Model:", await understand(sentence, []));
       return;
     }
     default:
