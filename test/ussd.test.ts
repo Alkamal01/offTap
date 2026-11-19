@@ -268,5 +268,6 @@ describe("USSD: sign-up with a managed wallet", () => {
     expect(t.sent).toEqual([{ nwcUri: uri("c"), recipient: MUSA, sats: 1100, receiverNwcUri: uri("d") }]);
     expect(t.texts.at(-1)).toMatchObject({ phone: MUSA });
     expect(await t.dial(MUSA, "3")).toContain(MUSA);
+    expect(await t.dial(MUSA, "3")).toContain("2348030000002@offtap.test");
   });
 });

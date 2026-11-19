@@ -2,6 +2,7 @@ import { createActions, type Wallet } from "../actions.js";
 import { displayName, normaliseContactName } from "../contacts.js";
 import type { Store, User } from "../db.js";
 import { isLightningAddress } from "../lightning/lnaddress.js";
+import { payAddress } from "../lightning/lnurlp.js";
 import { PaymentError, type Quote } from "../payments.js";
 import { normalisePhone } from "../phone.js";
 import type { SmsSender } from "../sms.js";
@@ -199,7 +200,7 @@ export function createUssdHandler(deps: UssdDeps) {
       case "2":
         return balance(user, parts);
       case "3":
-        if (user.managedSealed) return end(msg.receivePhone(user.phone));
+        if (user.managedSealed) return end(msg.receivePhone(user.phone, payAddress(user.phone, deps.publicUrl)));
         return end(user.lnAddress ? msg.receive(user.lnAddress) : msg.noReceive);
       case "4":
         return startLinking(phone);

@@ -11,7 +11,8 @@ export const msg = {
   pinMismatch: "PIN din ba su yi daidai ba. Sake farawa.",
   walletCreated: (ussdCode: string) => `An bude wallet dinka. Danna ${ussdCode} don tura ko karbar kudi.`,
   walletFailed: "Ba a iya bude wallet ba yanzu. Sake gwadawa.",
-  receivePhone: (phone: string) => `Don karbar kudi, a tura zuwa lambar wayarka:\n${phone}`,
+  receivePhone: (phone: string, address: string) =>
+    `Masu offTap: su tura zuwa lambarka ${phone}\nSauran Lightning wallet: su tura zuwa\n${address}`,
   askRecipient: "Shigar da lambar waya ko Lightning address na mai karba:",
   askRecipientWithContacts: (names: string[]) =>
     `Shigar da lambar waya ko Lightning address, ko zabi:\n${names.map((name, i) => `${i + 1}. ${name}`).join("\n")}`,
@@ -56,6 +57,7 @@ export const msg = {
     `offTap: An tura N${n(ngn)} (${n(sats)} sats) zuwa ${recipient}. Kudin aiki: ${n(feeSats)} sats.`,
   smsReceived: (ngn: number, sats: number, sender: string) =>
     `offTap: Ka karbi N${n(ngn)} (${n(sats)} sats) daga ${sender}.`,
+  smsReceivedOutside: (ngn: number, sats: number) => `offTap: Ka karbi ${n(sats)} sats (kimanin N${n(ngn)}) a wallet dinka.`,
   smsFailed: (ngn: number, recipient: string, reason: string) =>
     `offTap: Ba a iya tura N${n(ngn)} zuwa ${recipient} ba. ${reason}`,
   smsBalance: (sats: number, ngn: number) => `offTap: Balance ${n(sats)} sats (kimanin N${n(ngn)}).`,
