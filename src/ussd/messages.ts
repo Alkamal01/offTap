@@ -15,7 +15,7 @@ export const msg = {
     `Masu offTap: su tura zuwa lambarka ${phone}\nSauran Lightning wallet: su tura zuwa\n${address}`,
   askRecipient: "Shigar da lambar waya ko Lightning address na mai karba:",
   askRecipientWithContacts: (names: string[]) =>
-    `Shigar da lambar waya ko Lightning address, ko zabi:\n${names.map((name, i) => `${i + 1}. ${name}`).join("\n")}`,
+    `Lambar waya, Lightning address, ko zabi:\n${names.map((name, i) => `${i + 1}. ${name}`).join("\n")}`,
   contactsMenu: "Lambobina\n1. Ajiye sabuwar lamba\n2. Duba lambobina\n3. Goge lamba",
   askContactName: "Shigar da sunan mutumin (misali Musa):",
   askContactRecipient: (name: string) => `Shigar da lambar waya ko Lightning address na ${name}:`,
@@ -45,6 +45,8 @@ export const msg = {
   invalidAmount: "Adadin kudi bai dace ba.",
   tooLarge: (maxSats: number) => `Adadin ya wuce iyaka (${n(maxSats)} sats a kowane biya).`,
   dailyLimit: "Ka kai iyakar kashe kudi na yau.",
+  back: "0. Baya",
+  backOrMenu: "0. Baya\n00. Babban menu",
   invalidChoice: "Zabi bai dace ba.",
   sessionExpired: "Lokaci ya kure. Sake farawa.",
   error: "An samu matsala. Sake gwadawa.",

@@ -35,6 +35,16 @@ const con = (text: string): UssdResult => ({ reply: `CON ${text}` });
 const end = (text: string, background?: Promise<void>): UssdResult =>
   background ? { reply: `END ${text}`, background } : { reply: `END ${text}` };
 
+export function navigate(text: string): string[] {
+  const parts: string[] = [];
+  for (const entry of text === "" ? [] : text.split("*")) {
+    if (entry === "00") parts.length = 0;
+    else if (entry === "0") parts.pop();
+    else parts.push(entry);
+  }
+  return parts;
+}
+
 export function createUssdHandler(deps: UssdDeps) {
   const { store, sms, wallet } = deps;
   const now = deps.now ?? Date.now;
@@ -114,7 +124,7 @@ export function createUssdHandler(deps: UssdDeps) {
   async function send(user: User, sessionId: string, parts: string[]): Promise<UssdResult> {
     if (parts.length === 1) {
       const names = store.contacts(user.phone).map((c) => displayName(c.name));
-      return con(names.length > 0 ? msg.askRecipientWithContacts(names.slice(0, 6)) : msg.askRecipient);
+      return con(names.length > 0 ? msg.askRecipientWithContacts(names.slice(0, 5)) : msg.askRecipient);
     }
 
     const recipient = actions.resolveRecipient(user.phone, parts[1] ?? "");
@@ -179,10 +189,9 @@ export function createUssdHandler(deps: UssdDeps) {
     return end(msg.balanceLater, background);
   }
 
-  return async function handle(req: UssdRequest): Promise<UssdResult> {
+  async function route(req: UssdRequest, parts: string[]): Promise<UssdResult> {
     const phone = normalisePhone(req.phoneNumber);
     if (!phone) return end(msg.error);
-    const parts = req.text === "" ? [] : req.text.split("*");
     const user = store.getUser(phone);
 
     if (!user) {
@@ -209,5 +218,12 @@ export function createUssdHandler(deps: UssdDeps) {
       default:
         return end(msg.invalidChoice);
     }
+  }
+
+  return async function handle(req: UssdRequest): Promise<UssdResult> {
+    const parts = navigate(req.text);
+    const result = await route(req, parts);
+    if (parts.length === 0 || !result.reply.startsWith("CON ")) return result;
+    return { ...result, reply: `${result.reply}\n${parts.length === 1 ? msg.back : msg.backOrMenu}` };
   };
 }

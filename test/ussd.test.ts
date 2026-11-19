@@ -169,6 +169,50 @@ describe("USSD: balance and receive", () => {
   });
 });
 
+describe("USSD: going back", () => {
+  let t: ReturnType<typeof setup>;
+  beforeEach(async () => {
+    t = setup();
+    await t.link(AMINA, "1234", "amina@example.com");
+  });
+
+  it("offers 0 and 00 on every screen after the main menu", async () => {
+    expect(await t.dial(AMINA, "")).not.toContain("Baya");
+    expect(await t.dial(AMINA, "1")).toMatch(/\n0\. Baya$/);
+    expect(await t.dial(AMINA, "1*shop@example.com")).toMatch(/\n0\. Baya\n00\. Babban menu$/);
+  });
+
+  it("0 steps back one screen and 00 returns to the main menu", async () => {
+    expect(await t.dial(AMINA, "1*0")).toBe(await t.dial(AMINA, ""));
+    expect(await t.dial(AMINA, "1*shop@example.com*0")).toBe(await t.dial(AMINA, "1"));
+    expect(await t.dial(AMINA, "1*shop@example.com*500*00")).toBe(await t.dial(AMINA, ""));
+    expect(await t.dial(AMINA, "1*shop@example.com*00*2")).toMatch(/^CON .*PIN/);
+    expect(await t.dial(AMINA, "0")).toBe(await t.dial(AMINA, ""));
+  });
+
+  it("pays the corrected amount after going back from the PIN screen", async () => {
+    await t.dial(AMINA, "1*shop@example.com*500");
+    expect(await t.dial(AMINA, "1*shop@example.com*500*0")).toMatch(/Naira/);
+    expect(await t.dial(AMINA, "1*shop@example.com*500*0*1000")).toContain("N1,000");
+    expect(await t.dial(AMINA, "1*shop@example.com*500*0*1000*1234")).toMatch(/^END /);
+    expect(t.sent).toEqual([{ nwcUri: NWC, recipient: "shop@example.com", sats: 1100 }]);
+  });
+
+  it("keeps every open screen within what a USSD screen can show", async () => {
+    for (const name of ["baban aminatu k", "maman khadija a", "abdulrahman san", "muhammadu bello", "fatima zahra ab", "ibrahim"]) {
+      await t.dial(AMINA, `5*1*${name}*08030000002`);
+    }
+    await t.link(MUSA, "9999", "musa@example.com");
+    expect(t.store.contacts(AMINA)).toHaveLength(6);
+    const screens = ["1", "1*1", "1*1*40000", "2", "5", "5*1", "5*1*baban aminatu k"];
+    for (const text of screens) {
+      const reply = await t.dial(AMINA, text, "len");
+      expect(reply).toMatch(/^CON /);
+      expect(reply.length - 4).toBeLessThanOrEqual(182);
+    }
+  });
+});
+
 describe("USSD: contacts", () => {
   let t: ReturnType<typeof setup>;
   beforeEach(async () => {
