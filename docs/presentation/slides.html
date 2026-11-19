@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>offTap</title>
+<style>
+  @page { size: 1280px 720px; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Liberation Sans", Arial, Helvetica, sans-serif;
+    color: #14181f;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .slide {
+    width: 1280px;
+    height: 720px;
+    padding: 64px 80px 56px;
+    position: relative;
+    overflow: hidden;
+    page-break-after: always;
+    background: #ffffff;
+  }
+  .slide:last-child { page-break-after: auto; }
+  .dark { background: #0d1017; color: #f2f4f7; }
+  h1 { font-size: 64px; line-height: 1.05; margin: 0 0 20px; font-weight: 700; letter-spacing: -1px; }
+  h2 { font-size: 38px; line-height: 1.15; margin: 0 0 32px; font-weight: 700; letter-spacing: -0.5px; }
+  p { font-size: 24px; line-height: 1.45; margin: 0 0 18px; }
+  .lead { font-size: 28px; line-height: 1.4; max-width: 900px; }
+  .muted { color: #5b6472; }
+  .dark .muted { color: #9aa3b2; }
+  .small { font-size: 18px; line-height: 1.45; }
+  ul { margin: 0; padding: 0; list-style: none; }
+  li { font-size: 24px; line-height: 1.4; margin: 0 0 18px; padding-left: 26px; position: relative; }
+  li::before { content: ""; position: absolute; left: 0; top: 14px; width: 10px; height: 2px; background: #3d4f7c; }
+  li b, p b { font-weight: 700; }
+  .foot { position: absolute; left: 80px; right: 80px; bottom: 28px; display: flex; justify-content: space-between; font-size: 14px; color: #8a92a0; }
+  .cols { display: flex; gap: 56px; }
+  .cols > div { flex: 1; }
+  .phones { display: flex; gap: 28px; align-items: flex-start; }
+  .phones figure { margin: 0; width: 190px; }
+  .phones img { width: 190px; display: block; }
+  .phones figcaption { font-size: 16px; line-height: 1.35; color: #5b6472; margin-top: 10px; text-align: center; }
+  .steps { display: flex; gap: 0; margin: 8px 0 34px; }
+  .step { flex: 1; border-top: 3px solid #3d4f7c; padding: 18px 22px 0 0; }
+  .step .n { font-size: 15px; color: #3d4f7c; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+  .step .t { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .step .d { font-size: 18px; line-height: 1.4; color: #5b6472; }
+  .quote { font-size: 30px; font-weight: 700; margin: 0 0 6px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; vertical-align: top; font-size: 20px; line-height: 1.4; padding: 14px 18px 14px 0; border-bottom: 1px solid #d9dde3; }
+  th { font-size: 15px; color: #5b6472; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+  td:first-child { font-weight: 700; width: 210px; }
+  .flow { display: flex; align-items: stretch; gap: 0; margin: 4px 0 30px; }
+  .box { flex: 1; border: 1.5px solid #14181f; padding: 16px 16px; font-size: 18px; line-height: 1.35; }
+  .box b { display: block; font-size: 20px; margin-bottom: 4px; }
+  .arrow { width: 44px; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #3d4f7c; }
+  code, .mono { font-family: "DejaVu Sans Mono", "Liberation Mono", monospace; font-size: 0.86em; }
+  .cmd { font-family: "DejaVu Sans Mono", monospace; font-size: 22px; background: #f2f4f7; padding: 14px 20px; display: inline-block; margin: 0 0 22px; }
+  .dark .cmd { background: #1a1f2b; color: #f2f4f7; }
+  .logo { width: 96px; height: auto; display: block; margin-bottom: 36px; }
+  .links p { font-size: 22px; margin-bottom: 10px; }
+  .links span { display: inline-block; width: 150px; color: #9aa3b2; }
+  .shot { width: 560px; border: 1px solid #d9dde3; display: block; }
+</style>
+</head>
+<body>
+
+<section class="slide dark">
+  <img class="logo" src="../../public/logo.png" alt="">
+  <h1>offTap</h1>
+  <p class="lead">Lightning payments in Hausa, over USSD and voice.<br>For any phone, with no data and no app.</p>
+  <p class="muted" style="margin-top:150px">Kamal Aliyu &nbsp;·&nbsp; github.com/Alkamal01/offTap &nbsp;·&nbsp; offtap.onrender.com/sim</p>
+</section>
+
+<section class="slide">
+  <h2>The problem</h2>
+  <ul style="max-width:1000px">
+    <li>Traders in markets like Kantin Kwari and Dawanau lose sales when bank transfers and POS terminals go down.</li>
+    <li>POS agents take a charge on every transaction.</li>
+    <li>Lightning is cheap and does not depend on the banks, but every Lightning wallet needs a smartphone, working data and English.</li>
+    <li>Many traders have a feature phone, no data bundle, and speak Hausa.</li>
+  </ul>
+  <div class="foot"><span>offTap</span><span>2</span></div>
+</section>
+
+<section class="slide">
+  <h2>What offTap does</h2>
+  <p class="lead" style="margin-bottom:40px">A trader dials a short code and has a Lightning wallet in under a minute. Everything after that works by keypad or by speaking.</p>
+  <div class="steps">
+    <div class="step"><div class="n">Sign up</div><div class="t">Dial, pick a PIN</div><div class="d">No form, no email, no download.</div></div>
+    <div class="step"><div class="n">Pay</div><div class="t">Number and naira</div><div class="d">Amounts are entered in naira and shown in sats before the PIN.</div></div>
+    <div class="step"><div class="n">Receive</div><div class="t">Phone number is the address</div><div class="d">From other offTap users or any Lightning wallet.</div></div>
+    <div class="step"><div class="n">Receipt</div><div class="t">SMS to both sides</div><div class="d">In Hausa, with the amount and fee.</div></div>
+  </div>
+  <p class="muted small">The menu, prompts and messages are in Hausa. Every wallet is driven through Nostr Wallet Connect (NIP-47).</p>
+  <div class="foot"><span>offTap</span><span>3</span></div>
+</section>
+
+<section class="slide">
+  <h2>Paying over USSD</h2>
+  <div class="cols">
+    <div class="phones" style="flex:none">
+      <figure><img src="at-dial.png" alt=""><figcaption>Dial the code</figcaption></figure>
+      <figure><img src="at-menu.png" alt=""><figcaption>Menu in Hausa</figcaption></figure>
+      <figure><img src="at-sending.png" alt=""><figcaption>PIN accepted, payment sent</figcaption></figure>
+      <figure><img src="at-sms.png" alt=""><figcaption>SMS receipt</figcaption></figure>
+    </div>
+    <div>
+      <ul>
+        <li style="font-size:20px">Choose a saved name or type a number.</li>
+        <li style="font-size:20px">Enter naira. offTap shows the sats at the live rate.</li>
+        <li style="font-size:20px">Confirm with a 4-digit PIN.</li>
+        <li style="font-size:20px"><b>0</b> goes back, <b>00</b> returns to the main menu.</li>
+      </ul>
+      <p class="muted small" style="margin-top:26px">Screens from the Africa's Talking simulator, talking to the deployed server. Test sats.</p>
+    </div>
+  </div>
+  <div class="foot"><span>offTap</span><span>4</span></div>
+</section>
+
+<section class="slide">
+  <h2>Paying by voice</h2>
+  <p class="quote">"Tura dubu biyar zuwa Musa"</p>
+  <p class="muted" style="margin-bottom:34px">Send five thousand to Musa</p>
+  <div class="steps">
+    <div class="step"><div class="n">1</div><div class="t">Whisper</div><div class="d">Turns the recording into Hausa text.</div></div>
+    <div class="step"><div class="n">2</div><div class="t">Llama 3.3</div><div class="d">Works out the intent when the sentence is loose or misheard.</div></div>
+    <div class="step"><div class="n">3</div><div class="t">Rule parser</div><div class="d">Reads Hausa number words. Its amount wins over the model's.</div></div>
+    <div class="step"><div class="n">4</div><div class="t">Read-back and PIN</div><div class="d">The trader hears the amount and name, then types the PIN.</div></div>
+  </div>
+  <ul>
+    <li style="font-size:21px">The PIN is typed on the keypad, never spoken.</li>
+    <li style="font-size:21px">Voice can only pay saved contacts. A name that does not clearly match one is refused.</li>
+  </ul>
+  <div class="foot"><span>offTap</span><span>5</span></div>
+</section>
+
+<section class="slide">
+  <h2>Getting money in</h2>
+  <p class="lead" style="margin-bottom:26px">Every easy wallet has a Lightning address made from its phone number.</p>
+  <div class="cmd">2348051234567@offtap.onrender.com</div>
+  <ul style="max-width:980px">
+    <li>Anyone with any Lightning wallet, anywhere, can pay it.</li>
+    <li>The sats land in the trader's wallet and they get an SMS.</li>
+    <li>Other offTap users just send to the phone number.</li>
+    <li>Tested by paying a phone number from an outside test wallet.</li>
+  </ul>
+  <div class="foot"><span>offTap</span><span>6</span></div>
+</section>
+
+<section class="slide">
+  <h2>Two kinds of wallet</h2>
+  <table>
+    <tr><th></th><th>Easy wallet</th><th>Own wallet</th></tr>
+    <tr><td>Set up</td><td>Entirely over USSD</td><td>Link an NWC connection on a web page</td></tr>
+    <tr><td>Who holds the funds</td><td>The offTap operator's node, one sub-wallet per user. Custodial.</td><td>The merchant's own wallet</td></tr>
+    <tr><td>What offTap can do</td><td>Spend from the sub-wallet</td><td>Pay and read balance, up to the budget the merchant set</td></tr>
+    <tr><td>For</td><td>Anyone with any phone, small amounts</td><td>Merchants who want control</td></tr>
+  </table>
+  <p class="muted small" style="margin-top:26px">Same menu, same phone number, same PIN flow. A trader can start with the easy wallet and switch to their own from the menu.</p>
+  <div class="foot"><span>offTap</span><span>7</span></div>
+</section>
+
+<section class="slide">
+  <h2>Security</h2>
+  <div class="cols">
+    <div>
+      <ul>
+        <li style="font-size:21px">Sign-up and link codes are issued only inside a USSD session, so the SIM proves the number.</li>
+        <li style="font-size:21px">Wallet connections are encrypted with AES-256-GCM. For own wallets the key comes from the PIN and a server secret.</li>
+        <li style="font-size:21px">Three wrong PINs lock the account for an hour. PINs like 1234 are refused.</li>
+        <li style="font-size:21px">A cap per payment and per 24 hours on the server.</li>
+        <li style="font-size:21px">The invoice is checked against the amount the trader confirmed.</li>
+      </ul>
+    </div>
+    <div>
+      <p style="font-size:21px;font-weight:700;margin-bottom:14px">What it does not solve</p>
+      <ul>
+        <li style="font-size:21px">A 4-digit PIN is weak, and the operator sees it in transit.</li>
+        <li style="font-size:21px">The easy wallet is custodial.</li>
+        <li style="font-size:21px">A SIM swap can redirect future incoming payments.</li>
+      </ul>
+      <p class="muted small" style="margin-top:22px">The full threat model is in the repository, with the file that implements each control.</p>
+    </div>
+  </div>
+  <div class="foot"><span>offTap</span><span>8</span></div>
+</section>
+
+<section class="slide">
+  <h2>How it is built</h2>
+  <div class="flow">
+    <div class="box"><b>Phone</b>USSD, call or SMS</div>
+    <div class="arrow">&rarr;</div>
+    <div class="box"><b>Africa's Talking</b>Telecom gateway</div>
+    <div class="arrow">&rarr;</div>
+    <div class="box"><b>offTap server</b>Node, TypeScript, Fastify, SQLite</div>
+    <div class="arrow">&rarr;</div>
+    <div class="box"><b>Nostr relay</b>NIP-47 requests</div>
+    <div class="arrow">&rarr;</div>
+    <div class="box"><b>Wallet</b>Easy or own</div>
+  </div>
+  <ul>
+    <li style="font-size:21px">The server never talks to a Lightning node directly. Every wallet is reached through Nostr Wallet Connect.</li>
+    <li style="font-size:21px">Recipients are resolved with LNURL-pay. offTap is also an LNURL-pay server for each phone number.</li>
+    <li style="font-size:21px">Naira to sats from Yadio, with CoinGecko as the fallback.</li>
+    <li style="font-size:21px">Speech: Whisper large v3 and Llama 3.3 on Groq, or a self-hosted Whisper server.</li>
+    <li style="font-size:21px">USSD and voice share one set of rules for PIN, limits and payment.</li>
+  </ul>
+  <div class="foot"><span>offTap</span><span>9</span></div>
+</section>
+
+<section class="slide">
+  <h2>What works today</h2>
+  <div class="cols">
+    <div>
+      <p style="font-size:21px;font-weight:700;margin-bottom:14px">Working</p>
+      <ul>
+        <li style="font-size:20px">The Hausa USSD menu on the Africa's Talking sandbox against the deployed server: a payment sent and its SMS receipt delivered.</li>
+        <li style="font-size:20px">Sign-up, balance, receive and saved contacts over USSD.</li>
+        <li style="font-size:20px">Payments between wallets, and from an outside wallet to a phone number, with test sats.</li>
+        <li style="font-size:20px">Voice payments in the browser simulator. Spoken Hausa is transcribed by Whisper.</li>
+        <li style="font-size:20px">121 automated tests. One command to run, with three demo traders created on start.</li>
+      </ul>
+    </div>
+    <div>
+      <p style="font-size:21px;font-weight:700;margin-bottom:14px">Not yet</p>
+      <ul>
+        <li style="font-size:20px">Voice on a real phone line. The sandbox has no voice product, so the call webhook is untested.</li>
+        <li style="font-size:20px">Real sats. The Alby Hub path is built but the demo runs on test wallets.</li>
+        <li style="font-size:20px">Speech accuracy has not been measured with traders.</li>
+        <li style="font-size:20px">Spoken prompts in a Hausa voice.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span>offTap</span><span>10</span></div>
+</section>
+
+<section class="slide">
+  <h2>Try it</h2>
+  <div class="cols">
+    <div>
+      <p style="font-size:21px">Two phones in the browser, each with USSD, voice and SMS. Send from one and watch the other receive.</p>
+      <div class="cmd" style="font-size:19px">offtap.onrender.com/sim</div>
+      <p style="font-size:21px">Or run it locally:</p>
+      <div class="cmd" style="font-size:19px">docker compose up --build</div>
+      <table style="margin-top:4px">
+        <tr><th>Trader</th><th>Phone</th><th>PIN</th></tr>
+        <tr><td style="width:auto">Amina</td><td>+2348030000001</td><td>4826</td></tr>
+        <tr><td style="width:auto">Musa</td><td>+2348030000002</td><td>7391</td></tr>
+      </table>
+    </div>
+    <div style="flex:none">
+      <img class="shot" src="sim.png" alt="">
+      <p class="muted small" style="margin-top:12px">The demo server sleeps when idle. The first load can take a minute.</p>
+    </div>
+  </div>
+  <div class="foot"><span>offTap</span><span>11</span></div>
+</section>
+
+<section class="slide dark">
+  <h2 style="margin-bottom:28px">Next</h2>
+  <ul style="max-width:1000px">
+    <li>Test with traders in Kano and measure how often speech is understood.</li>
+    <li>Voice on a live phone number.</li>
+    <li>Real sats with small balance limits on easy wallets.</li>
+    <li>Protection against SIM swaps when a number is re-linked.</li>
+  </ul>
+  <div class="links" style="margin-top:56px">
+    <p><span>Code</span>github.com/Alkamal01/offTap</p>
+    <p><span>Demo</span>offtap.onrender.com/sim</p>
+  </div>
+</section>
+
+</body>
+</html>

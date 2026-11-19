@@ -120,7 +120,7 @@ What this does not protect against: a 4-digit PIN travels through the mobile net
 | Hausa USSD menu: send, balance, receive, link wallet | Done |
 | Sign-up over USSD with an easy wallet (test sats or Alby Hub sub-wallets) | Done |
 | Wallet linking with a one-time code and PIN | Done |
-| SMS receipts through Africa's Talking | Done, not yet tested against a live account |
+| SMS receipts through Africa's Talking | Done, delivered in the Africa's Talking sandbox |
 | Built-in phone simulator with demo traders and seed data | Done |
 | Lightning address per phone number, so outside wallets can pay in | Done, tested live between test wallets |
 | Saved contacts, pay by name | Done |
@@ -234,6 +234,7 @@ npm test
 
 ## More
 
+- [Presentation](docs/offTap-presentation.pdf): the project in twelve slides
 - [Threat model](docs/threat-model.md): what is protected, from whom, and what is not
 - [Deploying](docs/deploy.md): hosting requirements, settings and Africa's Talking callback URLs
 - [Original concept brief](docs/project-brief.md): where the idea started, with notes on what changed
