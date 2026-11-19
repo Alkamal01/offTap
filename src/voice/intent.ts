@@ -5,7 +5,7 @@ export type Intent =
   | { kind: "balance" }
   | { kind: "unknown" };
 
-const SEND_WORDS = new Set(["tura", "aika", "biya", "turawa", "aikawa", "send", "pay", "chura", "tora", "dura", "tura'", "aiko"]);
+const SEND_WORDS = new Set(["tura", "aika", "biya", "turawa", "aikawa", "send", "pay", "chura", "tora", "dura", "aiko"]);
 const BALANCE_WORDS = new Set(["balance", "balans", "nawa", "saura", "ragowa"]);
 const TO_WORDS = new Set(["zuwa", "wa", "ga", "to"]);
 const FILLER = new Set([
