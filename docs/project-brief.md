@@ -1,3 +1,11 @@
+> **This is the original concept document, kept for the record.** It was written before any code, and what was built differs from it in ways that matter:
+>
+> - The easy wallet created over USSD is **custodial**. Only the own-wallet mode keeps funds with the user, and even there a malicious operator could spend up to the budget the user set. "Zero custodial risk" and "the server admin cannot spend" below are not true of the built system.
+> - Not built: Cashu, Nostr-based phone directory (NIP-05/NIP-44), an LLM for intent extraction. Intent parsing is a small rule-based Hausa parser, and speech-to-text is Whisper.
+> - PIN encryption uses scrypt, not Argon2id.
+>
+> For what exists, read the [README](../README.md) and the [threat model](threat-model.md).
+
 Project Document: offTap (Kasuwanci Voice & USSD)
 
 Tagline: Hausa Voice & USSD Lightning Payments powered by Nostr Wallet Connect (NWC) and Open-Source AI.
