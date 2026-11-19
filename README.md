@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo.png" alt="offTap logo" width="120"></p>
+
 # offTap
 
 Lightning payments in Hausa over USSD and voice, for traders in Northern Nigeria whose bank network and mobile data keep failing. Every wallet is driven through Nostr Wallet Connect (NIP-47), whether offTap opened it for you or you brought your own.
@@ -136,7 +138,7 @@ What this does not protect against: a 4-digit PIN travels through the mobile net
 docker compose up --build
 ```
 
-Then open http://localhost:3000/sim. It is a phone simulator that talks to the server the same way Africa's Talking does, with an SMS inbox underneath.
+Then open http://localhost:3000/sim. It shows two phones side by side that talk to the server the same way Africa's Talking does. Each phone has USSD, voice and an SMS inbox, so you can send from one and watch the message arrive on the other.
 
 On first start the server creates three demo traders, each with a test wallet holding 10,000 test sats (no real value), with each other saved as contacts and two payments already made between them. This takes about half a minute and needs internet, since the wallets and payments are real ones on a test network.
 
@@ -146,10 +148,10 @@ On first start the server creates three demo traders, each with a test wallet ho
 | Musa | +2348030000002 | 7391 |
 | Aisha | +2348030000003 | 5802 |
 
-1. **Pay over USSD.** Pick Amina, press **Dial**, choose `1` to send, choose Musa from the list, enter an amount in naira, then the PIN. Both phones get an SMS.
-2. **Check a balance.** Pick Musa, dial, choose `2`, enter his PIN.
-3. **Pay by voice.** Under **Voice call** press **Call**, type `tura dari biyar zuwa Aisha`, and enter the PIN when asked.
-4. **Sign up from scratch.** Type any other number, dial, choose `1`, and pick a PIN.
+1. **Pay over USSD.** The left phone is Amina, the right is Musa. On Amina's phone press **Dial**, choose `1` to send, pick Musa from the list, enter an amount in naira, then her PIN. Musa's phone shows the SMS.
+2. **Check a balance.** On Musa's phone dial, choose `2`, enter his PIN.
+3. **Pay by voice.** Open the **Voice** tab, press **Call**, type `tura dari biyar zuwa Aisha`, and enter the PIN when asked.
+4. **Sign up from scratch.** Choose **Another number** at the top of a phone, dial, choose `1`, and pick a PIN.
 
 Set `SEED_DEMO=false` to start empty. Demo data is only created with test wallets, never when wallets hold real sats, and not when Africa's Talking keys are set unless you turn on the public demo (below).
 
