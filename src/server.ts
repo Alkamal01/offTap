@@ -5,7 +5,8 @@ import formbody from "@fastify/formbody";
 import { createActions } from "./actions.js";
 import { config } from "./config.js";
 import { Store } from "./db.js";
-import { describeWallet, getBalanceSats } from "./lightning/nwc.js";
+import { registerPayAddressRoutes, type PayAddressDeps } from "./lightning/lnurlp.js";
+import { describeWallet, getBalanceSats, invoiceSettled, makeInvoice } from "./lightning/nwc.js";
 import { PaymentError, quoteNgn, sendNgn } from "./payments.js";
 import { getRate } from "./rates.js";
 import { normalisePhone } from "./phone.js";
@@ -27,6 +28,8 @@ export type ServerOptions = {
   sms?: SmsSender;
   describeWallet?: typeof describeWallet;
   transcribe?: Transcriber | null;
+  invoices?: Pick<PayAddressDeps, "makeInvoice" | "invoiceSettled" | "watchEveryMs">;
+  publicUrl?: string;
   serverSecret?: string;
   ussdWebhookToken?: string;
   simulator?: boolean | "demo";
@@ -58,6 +61,7 @@ export function buildServer(options: ServerOptions = {}) {
   const store = options.store ?? new Store(join(config.dataDir, "offtap.db"));
   const serverSecret = options.serverSecret ?? config.serverSecret;
   const sms = options.sms ?? createSmsSender(store, (err) => app.log.warn({ err: err.message }, "sms delivery failed"));
+  const publicUrl = options.publicUrl ?? config.publicUrl;
   const token = options.ussdWebhookToken ?? config.ussdWebhookToken;
   const simulator =
     options.simulator === undefined ? config.simulator : options.simulator === true ? "open" : options.simulator || "off";
@@ -81,7 +85,7 @@ export function buildServer(options: ServerOptions = {}) {
     wallet,
     ...(provider ? { provider } : {}),
     serverSecret,
-    publicUrl: config.publicUrl,
+    publicUrl,
     ussdCode: config.ussdCode,
     dailyLimitSats: config.dailyLimitSats,
     maxPaymentSats: config.maxPaymentSats,
@@ -115,6 +119,16 @@ export function buildServer(options: ServerOptions = {}) {
       req.log.error({ err: (err as Error).message }, "ussd request failed");
       return `END ${msg.error}`;
     }
+  });
+
+  registerPayAddressRoutes(app, {
+    store,
+    sms,
+    serverSecret,
+    publicUrl,
+    maxSats: config.maxPaymentSats,
+    ngnPerBtc: wallet.ngnPerBtc,
+    ...(options.invoices ?? { makeInvoice, invoiceSettled }),
   });
 
   registerVoiceRoutes(app, {

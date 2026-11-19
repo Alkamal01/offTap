@@ -61,10 +61,25 @@ export async function payInvoice(nwcUri: string, invoice: string): Promise<Payme
   });
 }
 
-export async function makeInvoice(nwcUri: string, sats: number, description: string): Promise<{ invoice: string; paymentHash: string }> {
+export async function makeInvoice(
+  nwcUri: string,
+  sats: number,
+  description: string,
+  descriptionHash?: string,
+): Promise<{ invoice: string; paymentHash: string }> {
   return withWallet(nwcUri, async (client) => {
-    const tx = await client.makeInvoice({ amount: sats * MSATS_PER_SAT, description });
+    const tx = await client.makeInvoice({
+      amount: sats * MSATS_PER_SAT,
+      ...(descriptionHash ? { description_hash: descriptionHash } : { description }),
+    });
     return { invoice: tx.invoice, paymentHash: tx.payment_hash };
+  });
+}
+
+export async function invoiceSettled(nwcUri: string, paymentHash: string): Promise<boolean> {
+  return withWallet(nwcUri, async (client) => {
+    const tx = await client.lookupInvoice({ payment_hash: paymentHash });
+    return Boolean(tx.settled_at) || (tx as { state?: string }).state === "settled";
   });
 }
 
