@@ -82,6 +82,8 @@ In both modes:
 - **The amount is fixed at confirmation.** The trader sees naira and sats before entering the PIN, and the invoice is checked against that amount.
 - **Nothing sensitive is logged.** Request bodies, phone numbers and PINs are kept out of logs.
 
+The full list of threats, what limits each one, and what is still unsolved is in the [threat model](docs/threat-model.md).
+
 What this does not protect against: a 4-digit PIN travels through the mobile network and the server in the clear, so an offTap operator could spend from an easy wallet, or up to the budget of a linked one. Run your own server or use one you trust.
 
 ## Status
@@ -136,7 +138,9 @@ npm run dev
 
 ### With Africa's Talking
 
-Copy `.env.example` to `.env`, set `AT_USERNAME` and `AT_API_KEY`, and point your USSD channel's callback URL at `https://<your-host>/ussd`. Setting these turns the simulator off and sends real SMS.
+Copy `.env.example` to `.env`, set `AT_USERNAME` and `AT_API_KEY`, and point your USSD channel's callback URL at `https://<your-host>/ussd`. Setting these sends real SMS and turns the simulator off. Set `PUBLIC_DEMO=true` to keep the simulator, limited to practice numbers that real phones cannot use.
+
+To put it on a public address, see [docs/deploy.md](docs/deploy.md).
 
 ### With speech
 
