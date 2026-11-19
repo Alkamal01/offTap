@@ -65,6 +65,8 @@ describe("Hausa intents", () => {
     ["ka tura wa baban amina dubu daya da rabi", 1500, "baban amina"],
     ["dubu uku zuwa Sani", 3000, "sani"],
     ["tura 2000 ga musa", 2000, "musa"],
+    ["Chura naira hamsin zuwa da kamal.", 50, "kamal"],
+    ["chura dari biyar musa", 500, "musa"],
   ])("%s", (text, amountNgn, recipient) => {
     expect(parseIntent(text)).toEqual({ kind: "send", amountNgn, recipient });
   });

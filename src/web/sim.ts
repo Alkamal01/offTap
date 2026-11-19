@@ -222,7 +222,10 @@ export function registerSimulatorRoutes(app: FastifyInstance, deps: SimulatorDep
     let step: VoiceStep;
     if (action === "start") step = deps.calls.start(`sim-${callId}`, phone ?? "");
     else if (action === "pin") step = await deps.calls.digits(`sim-${callId}`, value ?? "");
-    else step = await deps.calls.heard(`sim-${callId}`, value ?? "");
+    else {
+      if (!deps.calls.active(`sim-${callId}`)) deps.calls.start(`sim-${callId}`, phone ?? "");
+      step = await deps.calls.heard(`sim-${callId}`, value ?? "");
+    }
     step.background?.catch((err: Error) => req.log.error({ err: err.message }, "voice background task failed"));
     return { say: step.say, expect: step.expect };
   });
