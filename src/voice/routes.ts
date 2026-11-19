@@ -8,6 +8,7 @@ export type VoiceRouteDeps = {
   transcribe?: Transcriber;
   download?: typeof downloadRecording;
   authorised: (token: string | undefined) => boolean;
+  reserved?: (phoneNumber: string) => boolean;
 };
 
 type VoiceBody = {
@@ -52,7 +53,8 @@ export function registerVoiceRoutes(app: FastifyInstance, deps: VoiceRouteDeps):
     const caller = body.direction?.toLowerCase() === "outbound" ? body.destinationNumber : body.callerNumber;
     let step: VoiceStep;
     try {
-      if (!calls.active(callId)) step = calls.start(callId, caller ?? "");
+      if (deps.reserved?.(caller ?? "")) step = { say: say.error, expect: "end" };
+      else if (!calls.active(callId)) step = calls.start(callId, caller ?? "");
       else if (body.dtmfDigits) step = await calls.digits(callId, body.dtmfDigits);
       else if (body.recordingUrl && deps.transcribe) {
         const recording = await download(body.recordingUrl);

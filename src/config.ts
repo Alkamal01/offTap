@@ -36,22 +36,27 @@ const viaGroq = sttUrl.includes("api.groq.com");
 const atUsername = str("AT_USERNAME");
 const atApiKey = str("AT_API_KEY");
 
+const atEnabled = Boolean(atUsername && atApiKey);
+const simulator: "open" | "demo" | "off" = !atEnabled ? "open" : str("PUBLIC_DEMO") === "true" ? "demo" : "off";
+const railwayDomain = str("RAILWAY_PUBLIC_DOMAIN");
+
 export const config = {
   port: intFromEnv("PORT", 3000),
   dataDir,
-  publicUrl: str("PUBLIC_URL") || `http://localhost:${intFromEnv("PORT", 3000)}`,
+  publicUrl: str("PUBLIC_URL") || (railwayDomain && `https://${railwayDomain}`) || `http://localhost:${intFromEnv("PORT", 3000)}`,
   ussdCode: str("USSD_CODE") || "*384*8822#",
   ussdWebhookToken: str("USSD_WEBHOOK_TOKEN"),
   maxPaymentSats: intFromEnv("MAX_PAYMENT_SATS", 50_000),
   dailyLimitSats: intFromEnv("DAILY_LIMIT_SATS", 100_000),
   africasTalking: {
-    enabled: Boolean(atUsername && atApiKey),
+    enabled: atEnabled,
     username: atUsername,
     apiKey: atApiKey,
     senderId: str("AT_SENDER_ID"),
   },
   walletProvider: (str("WALLET_PROVIDER") || "faucet") as "faucet" | "albyhub" | "none",
-  seedDemo: str("SEED_DEMO") !== "false" && (str("WALLET_PROVIDER") || "faucet") === "faucet" && !(atUsername && atApiKey),
+  simulator,
+  seedDemo: str("SEED_DEMO") !== "false" && (str("WALLET_PROVIDER") || "faucet") === "faucet" && simulator !== "off",
   faucetSats: intFromEnv("FAUCET_SATS", 10_000),
   speech: {
     url: sttUrl,

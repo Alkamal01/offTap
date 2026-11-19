@@ -1,5 +1,6 @@
 import { config } from "./config.js";
 import type { Store } from "./db.js";
+import { isDemoPhone } from "./seed.js";
 
 export type SmsSender = (phone: string, message: string) => Promise<void>;
 
@@ -20,7 +21,7 @@ async function sendViaAfricasTalking(phone: string, message: string): Promise<vo
 export function createSmsSender(store: Store, onError: (err: Error) => void = () => {}): SmsSender {
   return async (phone, message) => {
     store.addSms(phone, message);
-    if (!config.africasTalking.enabled) return;
+    if (!config.africasTalking.enabled || isDemoPhone(phone)) return;
     try {
       await sendViaAfricasTalking(phone, message);
     } catch (err) {

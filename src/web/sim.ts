@@ -1,7 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import type { Store } from "../db.js";
 import { normalisePhone } from "../phone.js";
-import type { DemoAccount } from "../seed.js";
+import { isDemoPhone, type DemoAccount } from "../seed.js";
+import type { UssdRequest, UssdResult } from "../ussd/handler.js";
 import type { VoiceCalls, VoiceStep } from "../voice/call.js";
 import type { Transcriber } from "../voice/speech.js";
 import { escapeHtml, page } from "./html.js";
@@ -18,7 +19,7 @@ ul { list-style:none; padding:0; margin:8px 0 0; }
 li { border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-bottom:8px; background:var(--card); font-size:.92rem; }
 `;
 
-function demoPanel(demo: DemoAccount[]): string {
+function demoPanel(demo: DemoAccount[], demoOnly: boolean): string {
   if (demo.length === 0) return "";
   const rows = demo
     .map(
@@ -27,16 +28,16 @@ function demoPanel(demo: DemoAccount[]): string {
     )
     .join("");
   return `<h1 style="margin-top:20px;font-size:1.15rem">Demo traders</h1>
-<p class="muted">Ready-made wallets with test sats. They have each other saved as contacts. Pick one, or type any other number to sign up from scratch.</p>
+<p class="muted">Ready-made wallets with test sats. They have each other saved as contacts. Pick one, or type another number${demoOnly ? " in the practice range" : ""} to sign up from scratch.</p>
 <ul id="demo">${rows}</ul>`;
 }
 
-function simulator(ussdCode: string, ussdPath: string, canListen: boolean, demo: DemoAccount[]): string {
+function simulator(ussdCode: string, canListen: boolean, demo: DemoAccount[], demoOnly: boolean): string {
   return page(
     "Simulator",
     `<h1>Phone simulator</h1>
-<p class="muted">Dials ${escapeHtml(ussdCode)} against this server the way Africa's Talking would. Development only.</p>
-${demoPanel(demo)}
+<p class="muted">Dials ${escapeHtml(ussdCode)} against this server the way Africa's Talking would.${demoOnly ? " This public demo only accepts the practice numbers +2348030000000 to +2348030000099. Real phones use the USSD code." : " Development only."}</p>
+${demoPanel(demo, demoOnly)}
 <label for="phone">Phone number</label>
 <input id="phone" value="+2348030000001" inputmode="tel">
 <div class="phone">
@@ -74,7 +75,7 @@ async function refreshSms() {
 }
 async function step() {
   const body = new URLSearchParams({ sessionId: session, serviceCode: ${JSON.stringify(ussdCode)}, phoneNumber: $("phone").value, text });
-  const res = await fetch(${JSON.stringify(ussdPath)}, { method: "POST", body });
+  const res = await fetch("/sim/ussd", { method: "POST", body });
   const reply = await res.text();
   const open = reply.startsWith("CON ");
   $("screen").textContent = reply.slice(4);
@@ -164,29 +165,54 @@ export type SimulatorDeps = {
   calls: VoiceCalls;
   transcribe?: Transcriber;
   ussdCode: string;
-  ussdPath: string;
+  ussd: (req: UssdRequest) => Promise<UssdResult>;
   demo?: DemoAccount[];
+  demoOnly?: boolean;
 };
 
 export function registerSimulatorRoutes(app: FastifyInstance, deps: SimulatorDeps): void {
+  const allowed = (input: string | undefined): string | undefined => {
+    const phone = normalisePhone(input ?? "");
+    return phone && (!deps.demoOnly || isDemoPhone(phone)) ? phone : undefined;
+  };
+
   app.get("/sim", async (_req, reply) =>
-    reply.type("text/html").send(simulator(deps.ussdCode, deps.ussdPath, Boolean(deps.transcribe), deps.demo ?? [])),
+    reply
+      .type("text/html")
+      .send(simulator(deps.ussdCode, Boolean(deps.transcribe), deps.demo ?? [], Boolean(deps.demoOnly))),
   );
 
   app.get<{ Querystring: { phone?: string } }>("/sim/sms", async (req, reply) => {
-    const phone = normalisePhone(req.query.phone ?? "");
+    const phone = allowed(req.query.phone);
     if (!phone) return reply.code(400).send([]);
     return deps.store.smsFor(phone).map((m) => ({ message: m.message, at: m.createdAt }));
+  });
+
+  type UssdForm = { sessionId?: string; phoneNumber?: string; text?: string };
+  app.post<{ Body: UssdForm }>("/sim/ussd", async (req, reply) => {
+    reply.type("text/plain");
+    const body = req.body ?? {};
+    const phone = allowed(body.phoneNumber);
+    if (!phone || !body.sessionId) return "END Use a practice number: +2348030000000 to +2348030000099.";
+    try {
+      const result = await deps.ussd({ sessionId: `sim-${body.sessionId}`, phoneNumber: phone, text: body.text ?? "" });
+      result.background?.catch((err: Error) => req.log.error({ err: err.message }, "ussd background task failed"));
+      return result.reply;
+    } catch (err) {
+      req.log.error({ err: (err as Error).message }, "simulator ussd failed");
+      return "END An samu matsala. Sake gwadawa.";
+    }
   });
 
   type VoiceForm = { callId?: string; phone?: string; action?: string; value?: string };
   app.post<{ Body: VoiceForm }>("/sim/voice", async (req, reply) => {
     const { callId, phone, action, value } = req.body ?? {};
     if (!callId) return reply.code(400).send({ say: "Missing call", expect: "end" });
+    if (!allowed(phone)) return { say: "Use a practice number: +2348030000000 to +2348030000099.", expect: "end" };
     let step: VoiceStep;
-    if (action === "start") step = deps.calls.start(callId, phone ?? "");
-    else if (action === "pin") step = await deps.calls.digits(callId, value ?? "");
-    else step = await deps.calls.heard(callId, value ?? "");
+    if (action === "start") step = deps.calls.start(`sim-${callId}`, phone ?? "");
+    else if (action === "pin") step = await deps.calls.digits(`sim-${callId}`, value ?? "");
+    else step = await deps.calls.heard(`sim-${callId}`, value ?? "");
     step.background?.catch((err: Error) => req.log.error({ err: err.message }, "voice background task failed"));
     return { say: step.say, expect: step.expect };
   });
@@ -196,7 +222,7 @@ export function registerSimulatorRoutes(app: FastifyInstance, deps: SimulatorDep
     app.addContentTypeParser(/^audio\//, { parseAs: "buffer", bodyLimit: 5 * 1024 * 1024 }, (_req, body, done) => done(null, body));
     app.post<{ Body: Buffer; Querystring: { phone?: string } }>("/sim/voice/transcribe", async (req, reply) => {
       try {
-        return { text: await transcribe(req.body, req.headers["content-type"] ?? "audio/webm", deps.calls.names(req.query.phone ?? "")) };
+        return { text: await transcribe(req.body, req.headers["content-type"] ?? "audio/webm", deps.calls.names(allowed(req.query.phone) ?? "")) };
       } catch (err) {
         req.log.error({ err: (err as Error).message }, "transcription failed");
         return reply.code(502).send({ error: "TRANSCRIPTION_FAILED" });

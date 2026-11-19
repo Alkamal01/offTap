@@ -8,7 +8,8 @@ import { Store } from "./db.js";
 import { describeWallet, getBalanceSats } from "./lightning/nwc.js";
 import { PaymentError, quoteNgn, sendNgn } from "./payments.js";
 import { getRate } from "./rates.js";
-import { DEMO_ACCOUNTS, seedDemo } from "./seed.js";
+import { normalisePhone } from "./phone.js";
+import { DEMO_ACCOUNTS, isDemoPhone, seedDemo } from "./seed.js";
 import { createSmsSender, type SmsSender } from "./sms.js";
 import { createUssdHandler, type Wallet } from "./ussd/handler.js";
 import { msg } from "./ussd/messages.js";
@@ -28,7 +29,7 @@ export type ServerOptions = {
   transcribe?: Transcriber | null;
   serverSecret?: string;
   ussdWebhookToken?: string;
-  simulator?: boolean;
+  simulator?: boolean | "demo";
   seed?: boolean;
   logger?: boolean;
 };
@@ -58,7 +59,9 @@ export function buildServer(options: ServerOptions = {}) {
   const serverSecret = options.serverSecret ?? config.serverSecret;
   const sms = options.sms ?? createSmsSender(store, (err) => app.log.warn({ err: err.message }, "sms delivery failed"));
   const token = options.ussdWebhookToken ?? config.ussdWebhookToken;
-  const simulator = options.simulator ?? !config.africasTalking.enabled;
+  const simulator =
+    options.simulator === undefined ? config.simulator : options.simulator === true ? "open" : options.simulator || "off";
+  const reserved = (phoneNumber: string) => simulator === "demo" && isDemoPhone(normalisePhone(phoneNumber) ?? "");
 
   const provider = options.provider === undefined ? providerFromConfig(config) : options.provider;
 
@@ -102,6 +105,7 @@ export function buildServer(options: ServerOptions = {}) {
     if (token && !sameToken(req.params.token ?? "", token)) return reply.code(403).send("END Forbidden");
     const body = req.body ?? {};
     if (!body.sessionId || !body.phoneNumber) return reply.code(400).send(`END ${msg.error}`);
+    if (reserved(body.phoneNumber)) return reply.code(403).send(`END ${msg.error}`);
     try {
       const result = await handleUssd({ sessionId: body.sessionId, phoneNumber: body.phoneNumber, text: body.text ?? "" });
       req.log.info({ step: body.text ? body.text.split("*").length : 0, open: result.reply.startsWith("CON") }, "ussd");
@@ -117,6 +121,7 @@ export function buildServer(options: ServerOptions = {}) {
     calls,
     ...(transcribe ? { transcribe } : {}),
     authorised: (given) => !token || sameToken(given ?? "", token),
+    reserved,
   });
 
   registerLinkRoutes(app, {
@@ -127,13 +132,14 @@ export function buildServer(options: ServerOptions = {}) {
     ussdCode: config.ussdCode,
   });
 
-  if (simulator) {
+  if (simulator !== "off") {
     registerSimulatorRoutes(app, {
       store,
       calls,
       ...(transcribe ? { transcribe } : {}),
       ussdCode: config.ussdCode,
-      ussdPath: token ? `/ussd/${token}` : "/ussd",
+      ussd: handleUssd,
+      demoOnly: simulator === "demo",
       demo: options.seed ? DEMO_ACCOUNTS : [],
     });
   }

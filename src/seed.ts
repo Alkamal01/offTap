@@ -11,6 +11,10 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
   { name: "Aisha", phone: "+2348030000003", pin: "5802" },
 ];
 
+export function isDemoPhone(phone: string): boolean {
+  return /^\+23480300000\d\d$/.test(phone);
+}
+
 const DEMO_PAYMENTS = [
   { from: "Amina", to: "Musa", amountNgn: 1500 },
   { from: "Musa", to: "Aisha", amountNgn: 700 },
