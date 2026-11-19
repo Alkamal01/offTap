@@ -31,7 +31,13 @@ Typing on a keypad is slow and not everyone reads. A trader can save the people 
 
 > "Tura dubu biyar zuwa Musa"
 
-offTap reads it back in Hausa ("Za ka tura naira dubu biyar zuwa Musa"), and the trader approves by entering their PIN on the keypad. The PIN is never spoken. Voice only pays saved contacts, and a name that does not clearly match one is refused rather than guessed.
+Three steps turn speech into a payment, and each one is checked by the next:
+
+1. **Whisper** turns the recording into Hausa text.
+2. **A language model** (Llama 3.3 on Groq) works out what the trader meant, even when the sentence is loosely worded or misheard. A small Hausa rule parser handles the clear sentences on its own and always decides the amount when it can read one, because number words should not be left to a model's judgement.
+3. **The trader** hears it read back ("Za ka tura naira dubu biyar zuwa Musa") and approves by entering their PIN on the keypad.
+
+The PIN is never spoken. Whatever the models say, voice only pays saved contacts, and a name that does not clearly match one is refused rather than guessed.
 
 ### Two kinds of wallet
 
@@ -50,6 +56,7 @@ flowchart LR
     phone[Trader's phone] -->|USSD / voice call| at[Africa's Talking]
     at -->|webhook| api[offTap server]
     api -->|recording| stt[Whisper on Groq or self-hosted]
+    api -->|transcript| llm[Llama on Groq: what did they mean?]
     api -->|BTC/NGN rate| oracle[Yadio / CoinGecko]
     api -->|LNURL-pay| recipient[Recipient's Lightning Address]
     api -->|NIP-47 pay_invoice| relay[Nostr relay]
@@ -75,6 +82,7 @@ flowchart LR
 | Voice understanding | Hausa number words and send/balance intents, no model needed | [src/voice/numbers.ts](src/voice/numbers.ts), [src/voice/intent.ts](src/voice/intent.ts) |
 | Voice calls | Africa's Talking Voice, read-back, keypad PIN | [src/voice/call.ts](src/voice/call.ts), [src/voice/routes.ts](src/voice/routes.ts) |
 | Speech-to-text | Whisper large v3 on Groq, or any self-hosted Whisper-compatible server | [src/voice/speech.ts](src/voice/speech.ts) |
+| AI understanding | Llama 3.3 70B on Groq (or any OpenAI-compatible model), strict JSON, rule parser as check and fallback | [src/voice/understand.ts](src/voice/understand.ts) |
 | Shared rules | PIN check, limits and payment, used by both USSD and voice | [src/actions.ts](src/actions.ts) |
 | Demo | Seeded traders and a browser phone simulator | [src/seed.ts](src/seed.ts), [src/web/sim.ts](src/web/sim.ts) |
 
@@ -115,7 +123,8 @@ What this does not protect against: a 4-digit PIN travels through the mobile net
 | Lightning address per phone number, so outside wallets can pay in | Done, tested live between test wallets |
 | Saved contacts, pay by name | Done |
 | Hausa voice: number words, intent, call flow, read-back, keypad PIN | Done, tested with typed speech and live test payments |
-| Speech-to-text on real recordings | Wired to a Whisper-compatible server, not yet tested with Hausa audio |
+| Speech-to-text on real recordings | Working with Whisper on Groq, tried with spoken Hausa in the simulator |
+| AI understanding of loosely worded or misheard sentences | Done, tested with a stand-in model; not yet measured on real traders' speech |
 | Africa's Talking voice webhook | Written, not yet tested on a live number |
 | Public demo mode: simulator limited to practice numbers, next to real phones | Done |
 | Threat model and deployment guide | Done |
@@ -163,14 +172,14 @@ To put it on a public address, see [docs/deploy.md](docs/deploy.md).
 
 The simulator takes typed sentences by default. To speak instead, give offTap a speech-to-text service. Two options:
 
-- **Groq (quickest).** Set `GROQ_API_KEY` in `.env`. Recordings are transcribed by Whisper large v3 on Groq.
+- **Groq (quickest).** Set `GROQ_API_KEY` in `.env`. Recordings are transcribed by Whisper large v3 on Groq, and the same key turns on the language model that interprets unclear sentences.
 - **Self-hosted.** Run the open-source speech server from the compose file, so audio never leaves your machine:
 
   ```bash
   STT_URL=http://speech:8000/v1/audio/transcriptions docker compose --profile voice up --build
   ```
 
-Either way the recogniser is told to expect Hausa, given the number words and the caller's saved contact names as hints, and its output still has to pass the same parser, contact match, read-back and PIN. With Groq, the recording and those names are sent to Groq; nothing else is.
+Either way the recogniser is told to expect Hausa, given the number words and the caller's saved contact names as hints, and its output still has to pass the same parser, contact match, read-back and PIN. With Groq, the recording, the transcript and those names are sent to Groq; nothing else is. No phone number, PIN or balance leaves the server. `LLM_URL` and `LLM_MODEL` point the understanding step at a different or self-hosted model.
 
 To check a recording from the command line:
 
@@ -219,7 +228,7 @@ With a real wallet the commands are the same; only the connection string changes
 npm test
 ```
 
-109 tests cover the money maths, PIN vault, USSD flows, contacts, Hausa numbers and intents, receiving from outside wallets, the voice call flow, the webhooks, demo seeding and the public demo restrictions. They run without network access.
+121 tests cover the money maths, PIN vault, USSD flows, contacts, Hausa numbers and intents, the AI understanding step and its limits, receiving from outside wallets, the voice call flow, the webhooks, demo seeding and the public demo restrictions. They run without network access.
 
 ## More
 
