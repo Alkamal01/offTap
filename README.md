@@ -11,7 +11,7 @@ Traders in markets like Kantin Kwari and Dawanau lose sales when bank transfers 
 A trader dials the USSD code and gets a wallet in under a minute. No smartphone, no data, no app.
 
 1. Dial the code, choose **Bude sabon wallet** and pick a 4-digit PIN. The wallet is ready.
-2. To pay, choose **Tura Kudi**, enter a phone number or Lightning address and an amount in naira.
+2. To pay, choose **Tura Kudi**, enter a phone number or Lightning address (or pick a saved name) and an amount in naira.
 3. offTap shows the amount in sats at the live rate. The trader confirms with their PIN.
 4. The payment settles over Lightning and both sides get an SMS.
 
@@ -44,12 +44,14 @@ flowchart LR
     api -->|LNURL-pay| recipient[Recipient's Lightning Address]
     api -->|NIP-47 pay_invoice| relay[Nostr relay]
     relay --> wallet[Wallet: easy or own]
+    api -->|new sub-wallet at sign-up| hub[Alby Hub or test faucet]
+    hub -.-> wallet
     api -->|SMS receipt| at
 ```
 
 | Layer | Technology | Code |
 |---|---|---|
-| Telecom gateway | Africa's Talking USSD and SMS | [src/ussd/](src/ussd/), [src/sms.ts](src/sms.ts) |
+| Telecom gateway | Africa's Talking USSD, SMS and voice | [src/ussd/](src/ussd/), [src/sms.ts](src/sms.ts) |
 | Wallet linking | Web form, one-time code, PIN-sealed storage | [src/web/link.ts](src/web/link.ts), [src/vault.ts](src/vault.ts) |
 | Easy wallets | NWC faucet for testing, Alby Hub sub-wallets for real sats | [src/wallets/provider.ts](src/wallets/provider.ts) |
 | Storage | SQLite | [src/db.ts](src/db.ts) |
@@ -63,8 +65,9 @@ flowchart LR
 | Voice calls | Africa's Talking Voice, read-back, keypad PIN | [src/voice/call.ts](src/voice/call.ts), [src/voice/routes.ts](src/voice/routes.ts) |
 | Speech-to-text | Whisper large v3 on Groq, or any self-hosted Whisper-compatible server | [src/voice/speech.ts](src/voice/speech.ts) |
 | Shared rules | PIN check, limits and payment, used by both USSD and voice | [src/actions.ts](src/actions.ts) |
+| Demo | Seeded traders and a browser phone simulator | [src/seed.ts](src/seed.ts), [src/web/sim.ts](src/web/sim.ts) |
 
-The server is the only component offTap runs. The wallet stays with the merchant, and the server reaches it through a Nostr relay using the connection the merchant issued.
+The offTap server never talks to a Lightning node directly. Every wallet, easy or own, is reached through a Nostr relay with an NWC connection. For an own wallet the merchant issued that connection and the funds stay with them. For an easy wallet the operator's node issued it at sign-up and holds the funds.
 
 ## Custody and security
 
@@ -101,7 +104,9 @@ What this does not protect against: a 4-digit PIN travels through the mobile net
 | Saved contacts, pay by name | Done |
 | Hausa voice: number words, intent, call flow, read-back, keypad PIN | Done, tested with typed speech and live test payments |
 | Speech-to-text on real recordings | Wired to a Whisper-compatible server, not yet tested with Hausa audio |
-| Africa's Talking voice webhook | Written from their documented format, not yet tested on a live number |
+| Africa's Talking voice webhook | Written, not yet tested on a live number |
+| Public demo mode: simulator limited to practice numbers, next to real phones | Done |
+| Threat model and deployment guide | Done |
 | Hausa text-to-speech on calls | Not yet: prompts are sent as text for Africa's Talking to speak |
 
 ## Run it
@@ -125,7 +130,7 @@ On first start the server creates three demo traders, each with a test wallet ho
 3. **Pay by voice.** Under **Voice call** press **Call**, type `tura dari biyar zuwa Aisha`, and enter the PIN when asked.
 4. **Sign up from scratch.** Type any other number, dial, choose `1`, and pick a PIN.
 
-Set `SEED_DEMO=false` to start empty. Demo data is never created when Africa's Talking keys are set or when wallets hold real sats.
+Set `SEED_DEMO=false` to start empty. Demo data is only created with test wallets, never when wallets hold real sats, and not when Africa's Talking keys are set unless you turn on the public demo (below).
 
 To link your own wallet instead, choose `2` on the first screen and follow the link code to http://localhost:3000/link.
 
@@ -161,7 +166,7 @@ To check a recording from the command line:
 npm run cli -- hear recording.m4a Musa Aisha
 ```
 
-For phone calls, point your Africa's Talking voice number's callback URL at `https://<your-host>/voice`.
+For phone calls, point your Africa's Talking voice number's callback URL at `https://<your-host>/voice`. Calls from Africa's Talking are not yet tested on a live number.
 
 ### With real sats
 
@@ -201,6 +206,14 @@ With a real wallet the commands are the same; only the connection string changes
 ```bash
 npm test
 ```
+
+105 tests cover the money maths, PIN vault, USSD flows, contacts, Hausa numbers and intents, the voice call flow, the webhooks, demo seeding and the public demo restrictions. They run without network access.
+
+## More
+
+- [Threat model](docs/threat-model.md): what is protected, from whom, and what is not
+- [Deploying](docs/deploy.md): hosting requirements, settings and Africa's Talking callback URLs
+- [Original concept brief](docs/project-brief.md): where the idea started, with notes on what changed
 
 ## Licence
 
