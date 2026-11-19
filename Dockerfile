@@ -13,6 +13,7 @@ ENV NODE_ENV=production
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json ./
+COPY public ./public
 RUN mkdir /data && chown node:node /data
 ENV DATA_DIR=/data
 USER node
