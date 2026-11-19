@@ -11,13 +11,14 @@ const EXTENSIONS: Record<string, string> = {
   "audio/webm": "webm",
 };
 
-const VOCABULARY =
-  "Tura naira dubu biyar zuwa Musa. Aika wa Aisha dari biyu da hamsin. Duba balance. Nawa ne kudina? " +
-  "daya biyu uku hudu biyar shida bakwai takwas tara goma sha ashirin talatin arba'in hamsin sittin saba'in tamanin casa'in dari dubu miliyan rabi.";
+const NUMBERS =
+  "daya, biyu, uku, hudu, biyar, shida, bakwai, takwas, tara, goma, ashirin, talatin, arba'in, hamsin, sittin, saba'in, tamanin, casa'in, dari, dubu.";
 
 export function speechPrompt(names: string[] = []): string {
-  const known = names.slice(0, 20).join(", ");
-  return known ? `${VOCABULARY} Sunaye: ${known}.` : VOCABULARY;
+  const known = names.slice(0, 20);
+  const people = known.length > 0 ? known : ["Musa"];
+  const examples = people.slice(0, 4).map((name, i) => ["Tura naira hamsin zuwa", "A tura wa", "Aika dubu biyar zuwa", "Biya"][i] + ` ${name}` + (i === 1 ? " naira dari biyar." : "."));
+  return `${NUMBERS} Sunaye: ${people.join(", ")}. ${examples.join(" ")} Nawa ne kudina?`;
 }
 
 export function createTranscriber(speech: SpeechConfig): Transcriber | undefined {

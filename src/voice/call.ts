@@ -25,7 +25,7 @@ type Target = { name: string; recipient: Recipient };
 type Pending = { kind: "balance" } | { kind: "send"; target: Target; quote: Quote };
 type Call = { phone: string; tries: number; amountNgn?: number; target?: Target; pending?: Pending; at: number };
 
-const MAX_TRIES = 3;
+const MAX_TRIES = 4;
 const CALL_MS = 10 * 60 * 1000;
 
 export function createVoiceCalls(deps: VoiceDeps) {
@@ -108,12 +108,16 @@ export function createVoiceCalls(deps: VoiceDeps) {
       else return retry(callId, call, say.notUnderstood);
     }
 
-    if (amountNgn !== undefined) call.amountNgn = amountNgn;
+    if (amountNgn !== undefined && amountNgn !== call.amountNgn) {
+      call.amountNgn = amountNgn;
+      call.tries = 0;
+    }
     if (spokenName) {
       const contact = matchContact(contacts, spokenName);
       if (!contact) return retry(callId, call, say.unknownContact);
       const recipient = actions.resolveRecipient(call.phone, contact.name);
       if (typeof recipient === "string") return finish(callId, say.notRegistered);
+      if (call.target?.name !== displayName(contact.name)) call.tries = 0;
       call.target = { name: displayName(contact.name), recipient };
     }
 

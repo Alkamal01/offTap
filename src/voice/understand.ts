@@ -4,7 +4,11 @@ export type Understander = (transcript: string, contactNames: string[]) => Promi
 
 export type LanguageModelConfig = { url: string; apiKey: string; model: string };
 
-const INSTRUCTIONS = `You read one sentence a market trader in Northern Nigeria spoke in Hausa to a payments phone line. The sentence came from speech recognition, so words may be misspelled or misheard (for example "chura" for "tura").
+const INSTRUCTIONS = `You read one sentence a market trader in Northern Nigeria spoke in Hausa to a payments phone line. The sentence came from speech recognition that is poor at Hausa. Expect words to be misspelled, merged, split or replaced by similar-sounding nonsense. Read it by sound, not by spelling. Examples of what the recogniser produces:
+- "Chura naira hamsin zuwa da kamal" means "Tura naira hamsin zuwa Kamal" (send 50 to Kamal)
+- "Atura wa Muthani rahamsa" means "A tura wa Musa naira hamsin" (send 50 to Musa)
+- "Tora dubbu biyal zua Aisya" means "Tura dubu biyar zuwa Aisha" (send 5000 to Aisha)
+- "Nawane kudina" means "Nawa ne kudina" (balance)
 
 Work out what the trader wants and reply with JSON only, in this shape:
 {"action": "send" | "balance" | "unknown", "amount_naira": number or null, "recipient": string or null}
@@ -12,8 +16,8 @@ Work out what the trader wants and reply with JSON only, in this shape:
 Rules:
 - "send": they want to send or pay money. "balance": they want to know how much they have. Anything else is "unknown".
 - amount_naira is the amount in naira as a plain number. Convert Hausa number words: daya 1, biyu 2, uku 3, hudu 4, biyar 5, shida 6, bakwai 7, takwas 8, tara 9, goma 10, "goma sha biyar" 15, ashirin 20, talatin 30, arba'in 40, hamsin 50, sittin 60, saba'in 70, tamanin 80, casa'in 90, dari 100, "dari biyu" 200, dubu 1000, "dubu biyar" 5000, "dubu biyu da dari biyar" 2500, "dubu ashirin da biyar" 25000, "da rabi" adds half of the last unit, miliyan 1000000.
-- recipient is the person to be paid. If it sounds like one of the saved contacts, return that contact's name exactly as given. Otherwise return the name as heard. Never invent a recipient.
-- If the amount or recipient was not said, use null. Do not guess.`;
+- recipient is the person to be paid. If any part of the sentence sounds like one of the saved contacts, return that contact's name exactly as given. Otherwise return the name as heard. Never return a name that has no basis in the sentence.
+- If you cannot find an amount or a recipient even by sound, use null for it. The trader will be asked again, and will hear everything read back before approving, so a reasonable reading by sound is better than giving up.`;
 
 export function createUnderstander(model: LanguageModelConfig): Understander | undefined {
   if (!model.url) return undefined;

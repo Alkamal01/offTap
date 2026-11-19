@@ -207,6 +207,7 @@ describe("voice call", () => {
     calls.start("c", AMINA);
     expect((await calls.heard("c", "tura dubu daya zuwa sani")).expect).toBe("speech");
     expect((await calls.heard("c", "sani")).expect).toBe("speech");
+    expect((await calls.heard("c", "sani")).expect).toBe("speech");
     expect((await calls.heard("c", "sani")).expect).toBe("end");
     expect(sent).toHaveLength(0);
   });
@@ -236,6 +237,7 @@ describe("voice call", () => {
     calls.start("d", AMINA);
     await calls.heard("d", "ina kwana");
     await calls.heard("d", "lafiya lau");
+    await calls.heard("d", "yaya gida");
     expect((await calls.heard("d", "sannu")).expect).toBe("end");
     expect((await calls.heard("d", "tura dubu daya zuwa musa")).expect).toBe("end");
   });
