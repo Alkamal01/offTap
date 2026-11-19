@@ -44,6 +44,7 @@ This describes what offTap protects, who it protects it from, and where it does 
 | Someone nearby overhears a call | The PIN is typed on the keypad, never spoken | [src/voice/routes.ts](../src/voice/routes.ts) |
 | Voice webhook made to fetch an attacker's URL | Recordings are fetched over https only, with no redirects, a size cap and a timeout, and only for callers behind the webhook token | [src/voice/speech.ts](../src/voice/speech.ts) |
 | Public demo simulator used to act as a real person's number | In public demo mode the simulator only accepts a reserved range of practice numbers, and those numbers are refused on the real USSD and voice webhooks | [src/web/sim.ts](../src/web/sim.ts), [src/server.ts](../src/server.ts) |
+| Someone floods a trader's Lightning address with invoice requests | 20 invoices per number per 10 minutes, whole sats only, capped at the per-payment limit. Creating an invoice never moves money out | [src/lightning/lnurlp.ts](../src/lightning/lnurlp.ts) |
 | Logs leak personal data | Request bodies are not logged. USSD logs record the step number only, with no phone number, input or PIN | [src/server.ts](../src/server.ts) |
 
 ## Known limits
@@ -52,6 +53,7 @@ This describes what offTap protects, who it protects it from, and where it does 
 - **The operator sees PINs in transit.** There is no way to do client-side cryptography on a feature phone.
 - **SIM swap redirects incoming payments.** Re-linking should require the old PIN or a cooling-off period. Not built yet.
 - **Easy wallets have no balance cap.** There are caps on sending, none on holding.
+- **A Lightning address made from a phone number reveals that the number has an offTap wallet.** Anyone can ask the server whether a given number exists. That is the cost of using phone numbers as addresses.
 - **SMS receipts are sent in the clear** and include amounts and the other party's number.
 - **Session and call state is held in memory**, so the server runs as a single instance and a restart drops sessions in progress. No funds are affected.
 - **With Groq, call recordings and contact names leave the server.** Self-hosted speech-to-text avoids this.

@@ -15,6 +15,16 @@ A trader dials the USSD code and gets a wallet in under a minute. No smartphone,
 3. offTap shows the amount in sats at the live rate. The trader confirms with their PIN.
 4. The payment settles over Lightning and both sides get an SMS.
 
+### Getting money in
+
+Every easy wallet has a Lightning address made from its phone number, served by offTap itself:
+
+```
+2348051234567@your-offtap-host
+```
+
+Anyone with any Lightning wallet, anywhere, can pay it. The sats land in the trader's wallet and they get an SMS. The trader finds the address under **Karbi Kudi**. Other offTap users just send to the phone number.
+
 ### By voice
 
 Typing on a keypad is slow and not everyone reads. A trader can save the people they pay under a name (**Lambobina** in the menu), then call in and say it:
@@ -59,6 +69,7 @@ flowchart LR
 | Payment flow | Naira quote, invoice, pay | [src/payments.ts](src/payments.ts) |
 | Wallet access | Nostr Wallet Connect (NIP-47) via `@getalby/sdk` | [src/lightning/nwc.ts](src/lightning/nwc.ts) |
 | Recipient lookup | Lightning Address (LNURL-pay) | [src/lightning/lnaddress.ts](src/lightning/lnaddress.ts) |
+| Receiving from outside | A Lightning address per phone number (LNURL-pay server), SMS on arrival | [src/lightning/lnurlp.ts](src/lightning/lnurlp.ts) |
 | Rate oracle | Yadio, CoinGecko fallback, 60s cache | [src/rates.ts](src/rates.ts) |
 | Contacts | Saved names per phone | [src/contacts.ts](src/contacts.ts) |
 | Voice understanding | Hausa number words and send/balance intents, no model needed | [src/voice/numbers.ts](src/voice/numbers.ts), [src/voice/intent.ts](src/voice/intent.ts) |
@@ -101,6 +112,7 @@ What this does not protect against: a 4-digit PIN travels through the mobile net
 | Wallet linking with a one-time code and PIN | Done |
 | SMS receipts through Africa's Talking | Done, not yet tested against a live account |
 | Built-in phone simulator with demo traders and seed data | Done |
+| Lightning address per phone number, so outside wallets can pay in | Done, tested live between test wallets |
 | Saved contacts, pay by name | Done |
 | Hausa voice: number words, intent, call flow, read-back, keypad PIN | Done, tested with typed speech and live test payments |
 | Speech-to-text on real recordings | Wired to a Whisper-compatible server, not yet tested with Hausa audio |
@@ -207,7 +219,7 @@ With a real wallet the commands are the same; only the connection string changes
 npm test
 ```
 
-105 tests cover the money maths, PIN vault, USSD flows, contacts, Hausa numbers and intents, the voice call flow, the webhooks, demo seeding and the public demo restrictions. They run without network access.
+109 tests cover the money maths, PIN vault, USSD flows, contacts, Hausa numbers and intents, receiving from outside wallets, the voice call flow, the webhooks, demo seeding and the public demo restrictions. They run without network access.
 
 ## More
 
