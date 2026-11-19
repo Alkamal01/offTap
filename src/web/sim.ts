@@ -130,9 +130,10 @@ if ($("mic")) {
       stream.getTracks().forEach((t) => t.stop());
       const blob = new Blob(chunks, { type: recorder.mimeType });
       recorder = null;
+      if (blob.size < 2000) { $("said").textContent = "Too short. Hold the button while you speak, then release."; return; }
       $("said").textContent = "Listening...";
-      const res = await fetch("/sim/voice/transcribe?phone=" + encodeURIComponent($("phone").value), { method: "POST", headers: { "content-type": blob.type }, body: blob });
-      if (!res.ok) { $("said").textContent = "Could not transcribe."; return; }
+      const res = await fetch("/sim/voice/transcribe?phone=" + encodeURIComponent($("phone").value), { method: "POST", headers: { "content-type": blob.type || "application/octet-stream" }, body: blob });
+      if (!res.ok) { $("said").textContent = "Could not transcribe (" + res.status + "). Type the sentence instead."; return; }
       const { text } = await res.json();
       $("said").textContent = "Heard: " + text;
       voice("say", text);
@@ -158,6 +159,15 @@ refreshSms();
 </script>`,
     CSS,
   );
+}
+
+function audioType(body: Buffer, declared: string | undefined): string {
+  if (declared?.startsWith("audio/")) return declared;
+  const head = body.subarray(0, 4).toString("latin1");
+  if (head === "OggS") return "audio/ogg";
+  if (head === "RIFF") return "audio/wav";
+  if (body.subarray(4, 8).toString("latin1") === "ftyp") return "audio/mp4";
+  return "audio/webm";
 }
 
 export type SimulatorDeps = {
@@ -219,10 +229,14 @@ export function registerSimulatorRoutes(app: FastifyInstance, deps: SimulatorDep
 
   if (deps.transcribe) {
     const transcribe = deps.transcribe;
-    app.addContentTypeParser(/^audio\//, { parseAs: "buffer", bodyLimit: 5 * 1024 * 1024 }, (_req, body, done) => done(null, body));
+    app.addContentTypeParser(
+      /^(audio\/|video\/webm|application\/octet-stream)/,
+      { parseAs: "buffer", bodyLimit: 5 * 1024 * 1024 },
+      (_req, body, done) => done(null, body),
+    );
     app.post<{ Body: Buffer; Querystring: { phone?: string } }>("/sim/voice/transcribe", async (req, reply) => {
       try {
-        return { text: await transcribe(req.body, req.headers["content-type"] ?? "audio/webm", deps.calls.names(allowed(req.query.phone) ?? "")) };
+        return { text: await transcribe(req.body, audioType(req.body, req.headers["content-type"]), deps.calls.names(allowed(req.query.phone) ?? "")) };
       } catch (err) {
         req.log.error({ err: (err as Error).message }, "transcription failed");
         return reply.code(502).send({ error: "TRANSCRIPTION_FAILED" });
