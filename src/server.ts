@@ -167,7 +167,9 @@ export function buildServer(options: ServerOptions = {}) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  buildServer({ seed: config.seedDemo })
+  const app = buildServer({ seed: config.seedDemo });
+  app.log.info({ simulator: config.simulator, seed: config.seedDemo, wallets: config.walletProvider }, "starting");
+  app
     .listen({ port: config.port, host: "0.0.0.0" })
     .catch((err) => {
       console.error(err);

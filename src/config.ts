@@ -13,7 +13,11 @@ function intFromEnv(name: string, fallback: number): number {
 }
 
 function str(name: string): string {
-  return (process.env[name] ?? "").trim();
+  return (process.env[name] ?? "").trim().replace(/^(["'])(.*)\1$/, "$2");
+}
+
+function flag(name: string): boolean {
+  return ["true", "1", "yes", "on"].includes(str(name).toLowerCase());
 }
 
 const dataDir = str("DATA_DIR") || "data";
@@ -37,7 +41,7 @@ const atUsername = str("AT_USERNAME");
 const atApiKey = str("AT_API_KEY");
 
 const atEnabled = Boolean(atUsername && atApiKey);
-const simulator: "open" | "demo" | "off" = !atEnabled ? "open" : str("PUBLIC_DEMO") === "true" ? "demo" : "off";
+const simulator: "open" | "demo" | "off" = !atEnabled ? "open" : flag("PUBLIC_DEMO") ? "demo" : "off";
 const railwayDomain = str("RAILWAY_PUBLIC_DOMAIN");
 
 export const config = {
@@ -56,7 +60,7 @@ export const config = {
   },
   walletProvider: (str("WALLET_PROVIDER") || "faucet") as "faucet" | "albyhub" | "none",
   simulator,
-  seedDemo: str("SEED_DEMO") !== "false" && (str("WALLET_PROVIDER") || "faucet") === "faucet" && simulator !== "off",
+  seedDemo: str("SEED_DEMO").toLowerCase() !== "false" && (str("WALLET_PROVIDER") || "faucet") === "faucet" && simulator !== "off",
   faucetSats: intFromEnv("FAUCET_SATS", 10_000),
   speech: {
     url: sttUrl,
