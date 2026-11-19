@@ -19,6 +19,7 @@ ul { list-style:none; padding:0; margin:8px 0 0; }
 .turn.bad { color:#b3261e; }
 .turn.sms { margin-top:10px; padding:8px 10px; border-left:3px solid #1a7f37; background:var(--card); }
 #vscreen { max-height:320px; overflow-y:auto; }
+.secret { -webkit-text-security: disc; }
 .said { margin-top:10px; font-size:.9rem; color:var(--muted); min-height:1.2em; }
 li { border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-bottom:8px; background:var(--card); font-size:.92rem; }
 `;
@@ -57,7 +58,7 @@ ${demoPanel(demo, demoOnly)}
   <div class="screen" id="vscreen" aria-live="polite">Press Call to start.</div>
   <div class="said" id="said"></div>
   <form class="row" id="vf">
-    <input id="vinput" aria-label="What you say" autocomplete="off" disabled>
+    <input id="vinput" name="offtap-say" type="text" aria-label="What you say" autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore disabled>
     ${canListen ? `<button id="mic" type="button" disabled>Hold to speak</button>` : ""}
     <button id="vgo" type="submit">Call</button>
   </form>
@@ -109,6 +110,7 @@ async function step() {
   $("input").disabled = !open;
   $("input").value = "";
   $("go").textContent = open ? "Send" : "Dial";
+  $("phone").readOnly = open;
   if (open) $("input").focus(); else session = null;
   if (!open) watchForSms("screen");
   refreshSms();
@@ -141,7 +143,9 @@ function showVoice(step) {
   const open = expecting !== "end";
   $("vinput").disabled = !open;
   $("vinput").value = "";
-  $("vinput").type = expecting === "pin" ? "password" : "text";
+  $("vinput").classList.toggle("secret", expecting === "pin");
+  $("vinput").inputMode = expecting === "pin" ? "numeric" : "text";
+  $("phone").readOnly = open;
   $("vinput").placeholder = expecting === "pin" ? "PIN" : expecting === "speech" ? "tura dubu biyar zuwa Musa" : "";
   $("vgo").textContent = open ? "Send" : "Call";
   if ($("mic")) $("mic").disabled = expecting !== "speech";
@@ -211,7 +215,11 @@ document.querySelectorAll(".pick").forEach((b) => b.addEventListener("click", ()
   $("input").disabled = true; $("vinput").disabled = true;
   refreshSms();
 }));
-$("phone").addEventListener("change", () => { newestSms = null; smsWatch = null; session = null; call = null; refreshSms(); });
+$("phone").addEventListener("change", () => {
+  if (call || session) return;
+  newestSms = null; smsWatch = null;
+  refreshSms();
+});
 refreshSms();
 setInterval(refreshSms, 3000);
 </script>`,
