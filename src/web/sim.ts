@@ -15,6 +15,10 @@ const CSS = `
 .row button { width:auto; margin:0; padding:12px 18px; }
 ul { list-style:none; padding:0; margin:8px 0 0; }
 .pick { width:auto; margin:0 8px 0 0; padding:4px 12px; font-size:.9rem; }
+.turn { margin-bottom:8px; white-space:pre-wrap; }
+.turn.bad { color:#b3261e; }
+.turn.sms { margin-top:10px; padding:8px 10px; border-left:3px solid #1a7f37; background:var(--card); }
+#vscreen { max-height:320px; overflow-y:auto; }
 .said { margin-top:10px; font-size:.9rem; color:var(--muted); min-height:1.2em; }
 li { border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-bottom:8px; background:var(--card); font-size:.92rem; }
 `;
@@ -63,10 +67,27 @@ ${demoPanel(demo, demoOnly)}
 <script>
 const $ = (id) => document.getElementById(id);
 let session = null, text = "";
+let newestSms = null, smsWatch = null;
+function watchForSms(screenId) {
+  smsWatch = { screenId, until: Date.now() + 90000 };
+}
 async function refreshSms() {
-  const res = await fetch("/sim/sms?phone=" + encodeURIComponent($("phone").value));
+  let res;
+  try { res = await fetch("/sim/sms?phone=" + encodeURIComponent($("phone").value)); } catch { return; }
   if (!res.ok) return;
   const list = await res.json();
+  const top = list.length ? list[0].at + "|" + list[0].message : "";
+  if (smsWatch && newestSms !== null && top && top !== newestSms) {
+    const div = document.createElement("div");
+    div.className = "turn sms";
+    const b = document.createElement("b");
+    b.textContent = "SMS: ";
+    div.append(b, list[0].message);
+    $(smsWatch.screenId).append(div);
+    smsWatch = null;
+  }
+  if (smsWatch && Date.now() > smsWatch.until) smsWatch = null;
+  newestSms = top;
   $("sms").replaceChildren(...(list.length ? list : [{ message: "No messages yet." }]).map((m) => {
     const li = document.createElement("li");
     li.textContent = m.message;
@@ -75,16 +96,22 @@ async function refreshSms() {
 }
 async function step() {
   const body = new URLSearchParams({ sessionId: session, serviceCode: ${JSON.stringify(ussdCode)}, phoneNumber: $("phone").value, text });
-  const res = await fetch("/sim/ussd", { method: "POST", body });
-  const reply = await res.text();
+  let reply;
+  try {
+    const res = await fetch("/sim/ussd", { method: "POST", body });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    reply = await res.text();
+  } catch (err) {
+    reply = "END Could not reach the server (" + err.message + "). Press Dial to try again.";
+  }
   const open = reply.startsWith("CON ");
   $("screen").textContent = reply.slice(4);
   $("input").disabled = !open;
   $("input").value = "";
   $("go").textContent = open ? "Send" : "Dial";
   if (open) $("input").focus(); else session = null;
-  setTimeout(refreshSms, 400);
-  setTimeout(refreshSms, 5000);
+  if (!open) watchForSms("screen");
+  refreshSms();
 }
 $("f").addEventListener("submit", (e) => {
   e.preventDefault();
@@ -92,30 +119,58 @@ $("f").addEventListener("submit", (e) => {
   else { text = text ? text + "*" + $("input").value : $("input").value; }
   step();
 });
-let call = null, expecting = "end";
+let call = null, expecting = "end", busy = false;
+function line(who, text, cls) {
+  const div = document.createElement("div");
+  div.className = "turn " + (cls || "");
+  const b = document.createElement("b");
+  b.textContent = who + ": ";
+  div.append(b, text);
+  $("vscreen").append(div);
+  $("vscreen").scrollTop = $("vscreen").scrollHeight;
+}
+function setBusy(on) {
+  busy = on;
+  $("vgo").disabled = on;
+  if ($("mic")) $("mic").disabled = on || expecting !== "speech";
+  $("said").textContent = on ? "Please wait..." : $("said").textContent === "Please wait..." ? "" : $("said").textContent;
+}
 function showVoice(step) {
-  expecting = step.expect;
-  $("vscreen").textContent = step.say;
-  const open = step.expect !== "end";
+  expecting = step.expect || "end";
+  line("offTap", step.say || "No reply from the server. Try again.", step.say ? "" : "bad");
+  const open = expecting !== "end";
   $("vinput").disabled = !open;
   $("vinput").value = "";
-  $("vinput").type = step.expect === "pin" ? "password" : "text";
-  $("vinput").placeholder = step.expect === "pin" ? "PIN" : step.expect === "speech" ? "tura dubu biyar zuwa Musa" : "";
+  $("vinput").type = expecting === "pin" ? "password" : "text";
+  $("vinput").placeholder = expecting === "pin" ? "PIN" : expecting === "speech" ? "tura dubu biyar zuwa Musa" : "";
   $("vgo").textContent = open ? "Send" : "Call";
-  if ($("mic")) $("mic").disabled = step.expect !== "speech";
-  if (open) $("vinput").focus(); else call = null;
-  setTimeout(refreshSms, 400);
-  setTimeout(refreshSms, 5000);
+  if ($("mic")) $("mic").disabled = expecting !== "speech";
+  if (open) $("vinput").focus();
+  else {
+    call = null;
+    if (step.pending) { line("Call ended", "waiting for the payment result...", "muted"); watchForSms("vscreen"); }
+    else line("Call ended", "press Call to start again.", "muted");
+  }
 }
 async function voice(action, value) {
-  const body = new URLSearchParams({ callId: call, phone: $("phone").value, action, value: value || "" });
-  const res = await fetch("/sim/voice", { method: "POST", body });
-  showVoice(await res.json());
+  if (busy) return;
+  setBusy(true);
+  try {
+    const body = new URLSearchParams({ callId: call, phone: $("phone").value, action, value: value || "" });
+    const res = await fetch("/sim/voice", { method: "POST", body });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    setBusy(false);
+    showVoice(await res.json());
+  } catch (err) {
+    setBusy(false);
+    line("Problem", "could not reach the server (" + err.message + "). Try again.", "bad");
+  }
 }
 $("vf").addEventListener("submit", (e) => {
   e.preventDefault();
-  if (!call) { call = "call-" + Date.now(); $("said").textContent = ""; voice("start"); return; }
-  if (expecting === "speech") $("said").textContent = "You said: " + $("vinput").value;
+  if (busy) return;
+  if (!call) { call = "call-" + Date.now(); $("said").textContent = ""; $("vscreen").replaceChildren(); voice("start"); return; }
+  line("You", expecting === "pin" ? "PIN ****" : $("vinput").value);
   voice(expecting === "pin" ? "pin" : "say", $("vinput").value);
 });
 if ($("mic")) {
@@ -133,9 +188,10 @@ if ($("mic")) {
       if (blob.size < 2000) { $("said").textContent = "Too short. Hold the button while you speak, then release."; return; }
       $("said").textContent = "Listening...";
       const res = await fetch("/sim/voice/transcribe?phone=" + encodeURIComponent($("phone").value), { method: "POST", headers: { "content-type": blob.type || "application/octet-stream" }, body: blob });
-      if (!res.ok) { $("said").textContent = "Could not transcribe (" + res.status + "). Type the sentence instead."; return; }
+      if (!res.ok) { $("said").textContent = ""; line("Problem", "could not transcribe (" + res.status + "). Hold and speak again, or type the sentence.", "bad"); return; }
       const { text } = await res.json();
-      $("said").textContent = "Heard: " + text;
+      $("said").textContent = "";
+      line("You (heard)", text || "(nothing)");
       voice("say", text);
     };
     recorder.start();
@@ -148,14 +204,16 @@ if ($("mic")) {
 }
 document.querySelectorAll(".pick").forEach((b) => b.addEventListener("click", () => {
   $("phone").value = b.dataset.phone;
-  session = null; call = null;
+  session = null; call = null; newestSms = null; smsWatch = null;
   $("screen").textContent = "Press Dial to start.";
   $("vscreen").textContent = "Press Call to start.";
   $("go").textContent = "Dial"; $("vgo").textContent = "Call";
   $("input").disabled = true; $("vinput").disabled = true;
   refreshSms();
 }));
+$("phone").addEventListener("change", () => { newestSms = null; smsWatch = null; session = null; call = null; refreshSms(); });
 refreshSms();
+setInterval(refreshSms, 3000);
 </script>`,
     CSS,
   );
@@ -227,7 +285,7 @@ export function registerSimulatorRoutes(app: FastifyInstance, deps: SimulatorDep
       step = await deps.calls.heard(`sim-${callId}`, value ?? "");
     }
     step.background?.catch((err: Error) => req.log.error({ err: err.message }, "voice background task failed"));
-    return { say: step.say, expect: step.expect };
+    return { say: step.say, expect: step.expect, pending: Boolean(step.background) };
   });
 
   if (deps.transcribe) {
