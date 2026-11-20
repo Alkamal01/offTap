@@ -4,6 +4,8 @@
 
 Lightning payments in Hausa over USSD and voice, for traders in Northern Nigeria whose bank network and mobile data keep failing. Every wallet is driven through Nostr Wallet Connect (NIP-47), whether offTap opened it for you or you brought your own.
 
+**[Watch the 3-minute demo](https://youtu.be/4w6BLyX_EiQ)** · [Try the live simulator](https://offtap.onrender.com/sim) · [Slides](docs/offTap-presentation.pdf)
+
 ## The problem
 
 Traders in markets like Kantin Kwari and Dawanau lose sales when bank transfers and POS terminals go down, and POS agents charge on every transaction. Lightning fixes the cost and the downtime, but every Lightning wallet needs a smartphone with working data and is written in English. When the data drops, the merchant is stuck.
@@ -117,14 +119,14 @@ What this does not protect against: a 4-digit PIN travels through the mobile net
 | NWC client (balance, pay invoice, budget check) | Done |
 | Lightning Address resolver with amount verification | Done |
 | BTC/NGN rate with fallback source | Done |
-| Hausa USSD menu: send, balance, receive, link wallet | Done |
+| Hausa USSD menu: send, balance, receive, link wallet | Done, run on the Africa's Talking sandbox against the deployed server |
 | Sign-up over USSD with an easy wallet (test sats or Alby Hub sub-wallets) | Done |
 | Wallet linking with a one-time code and PIN | Done |
 | SMS receipts through Africa's Talking | Done, delivered in the Africa's Talking sandbox |
 | Built-in phone simulator with demo traders and seed data | Done |
 | Lightning address per phone number, so outside wallets can pay in | Done, tested live between test wallets |
 | Saved contacts, pay by name | Done |
-| Hausa voice: number words, intent, call flow, read-back, keypad PIN | Done, tested with typed speech and live test payments |
+| Hausa voice: number words, intent, call flow, read-back, keypad PIN | Done, tested with typed and spoken Hausa and live test payments in the simulator |
 | Speech-to-text on real recordings | Working with Whisper on Groq, tried with spoken Hausa in the simulator |
 | AI understanding of loosely worded or misheard sentences | Done, tested with a stand-in model; not yet measured on real traders' speech |
 | Africa's Talking voice webhook | Written, not yet tested on a live number |
